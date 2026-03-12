@@ -1,0 +1,1 @@
+export default function MedicalTrackingTab() { return <div className='p-6 min-h-[400px]'><h2>Medical Monitoring</h2></div>; }
