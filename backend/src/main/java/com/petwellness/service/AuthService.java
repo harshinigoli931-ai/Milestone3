@@ -25,6 +25,7 @@ public class AuthService {
     private final JwtTokenProvider tokenProvider;
     private final OtpService otpService;
     private final ProfileCompletionCalculator profileCalculator;
+    private final org.springframework.security.authentication.AuthenticationManager authenticationManager;
 
     public AuthService(UserRepository userRepository,
             PersonalInformationRepository personalInfoRepo,
@@ -33,7 +34,8 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtTokenProvider tokenProvider,
             OtpService otpService,
-            ProfileCompletionCalculator profileCalculator) {
+            ProfileCompletionCalculator profileCalculator,
+            org.springframework.security.authentication.AuthenticationManager authenticationManager) {
         this.userRepository = userRepository;
         this.personalInfoRepo = personalInfoRepo;
         this.addressRepo = addressRepo;
@@ -42,6 +44,23 @@ public class AuthService {
         this.tokenProvider = tokenProvider;
         this.otpService = otpService;
         this.profileCalculator = profileCalculator;
+        this.authenticationManager = authenticationManager;
+    }
+
+    public AuthResponse authenticate(AuthRequest request) {
+        org.springframework.security.core.Authentication authentication = authenticationManager.authenticate(
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        request.getEmail(),
+                        request.getPassword()));
+
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new UnauthorizedException("User not found"));
+
+        String token = tokenProvider.generateToken(user.getId(), user.getEmail(), user.getRole().name());
+
+        return new AuthResponse(token, user.getEmail(), user.getRole().name());
     }
 
     /**
@@ -176,9 +195,14 @@ public class AuthService {
         // Save address
         if (request.getCity() != null) {
             Address address = Address.builder()
-                    .user(user).street(request.getStreet()).city(request.getCity())
-                    .state(request.getState()).zipCode(request.getZipCode())
-                    .country(request.getCountry()).build();
+                    .user(user)
+                    .fullName(request.getFirstName() + " " + request.getLastName())
+                    .phone(request.getPhone())
+                    .street(request.getStreet())
+                    .city(request.getCity())
+                    .state(request.getState())
+                    .postalCode(request.getZipCode())
+                    .build();
             addressRepo.save(address);
         }
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 import {
   LineChart,
   Line,
@@ -106,9 +107,8 @@ const HealthReports = () => {
 
       setDownloaded(true);
       setTimeout(() => setDownloaded(false), 4000);
-    } catch (e) {
-      console.error("Failed to download PDF", e);
-      alert("Failed to download Health Report");
+    } catch (error) {
+      toast.error("Failed to download Health Report");
     } finally {
       setLoading(false);
     }

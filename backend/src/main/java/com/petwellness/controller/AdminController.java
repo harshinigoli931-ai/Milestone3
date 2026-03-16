@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
+@CrossOrigin(origins = "http://localhost:5173")
 @PreAuthorize("hasRole('ADMIN')")
 @Tag(name = "Admin", description = "Admin management endpoints")
 public class AdminController {
@@ -139,27 +140,10 @@ public class AdminController {
         return ResponseEntity.ok(ApiResponse.success("All slots", appointmentService.getAllSlots()));
     }
 
-    // ========== Product Management ==========
-
-    @PostMapping("/products")
-    @Operation(summary = "Create a product")
-    public ResponseEntity<ApiResponse<ProductResponse>> createProduct(@RequestBody ProductRequest request) {
-        return ResponseEntity.ok(ApiResponse.success("Product created", marketplaceService.createProduct(request)));
-    }
-
-    @PutMapping("/products/{productId}")
-    @Operation(summary = "Update a product")
-    public ResponseEntity<ApiResponse<ProductResponse>> updateProduct(@PathVariable("productId") Long productId,
-            @RequestBody ProductRequest request) {
-        return ResponseEntity
-                .ok(ApiResponse.success("Product updated", marketplaceService.updateProduct(productId, request)));
-    }
-
-    @DeleteMapping("/products/{productId}")
-    @Operation(summary = "Deactivate a product")
-    public ResponseEntity<ApiResponse<Void>> deleteProduct(@PathVariable("productId") Long productId) {
-        marketplaceService.deleteProduct(productId);
-        return ResponseEntity.ok(ApiResponse.success("Product deactivated"));
+    @GetMapping("/appointments")
+    @Operation(summary = "List all appointments")
+    public ResponseEntity<ApiResponse<List<AppointmentResponse>>> getAllAppointments() {
+        return ResponseEntity.ok(ApiResponse.success("All appointments", appointmentService.getAllAppointments()));
     }
 
     @GetMapping("/orders")

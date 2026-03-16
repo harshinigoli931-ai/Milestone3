@@ -35,4 +35,8 @@ public class OwnerProfileResponse {
     private String designation;
     private String industry;
     private Integer yearsOfExperience;
+
+    private Integer numberOfPets;
+    private String petTypes;
+    private String education;
 }

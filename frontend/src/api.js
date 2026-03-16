@@ -3,32 +3,43 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: 'http://localhost:8080/api',
   headers: {
-    'Content-Type': 'application/json',
-    'X-API-KEY': '5b1Cvy5sID3Jvn'
+    'Content-Type': 'application/json'
   }
 });
 
-// Request interceptor: attach JWT token
+// Request interceptor: attach JWT token except for auth APIs
 api.interceptors.request.use(
   (config) => {
+
     const token = localStorage.getItem('token');
-    if (token) {
+
+    const isAuthRequest =
+      config.url.includes('/auth/login') ||
+      config.url.includes('/auth/register');
+
+    if (token && !isAuthRequest) {
+      console.log("api.js - Attaching token to:", config.url);
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.log("api.js - Skipping token for:", config.url);
     }
+
     return config;
+
   },
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: redirect to login on 401/403
+// Response interceptor: redirect to login on unauthorized
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response && (error.response.status === 401)) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('role');
-      window.location.href = '/login';
-    }
+
+    console.error("API error 401/403:", error.response.status, error.config.url);
+    // localStorage.removeItem('token');
+    // localStorage.removeItem('role');
+    // window.location.href = '/login';
+
     return Promise.reject(error);
   }
 );

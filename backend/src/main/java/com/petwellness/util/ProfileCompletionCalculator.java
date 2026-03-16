@@ -32,9 +32,10 @@ public class ProfileCompletionCalculator {
             }
         }
 
-        if (addressRepo.findByUserId(user.getId()).isPresent()) {
-            var addr = addressRepo.findByUserId(user.getId()).get();
-            if (addr.getCity() != null && addr.getCountry() != null) {
+        var addresses = addressRepo.findByUserId(user.getId());
+        if (!addresses.isEmpty()) {
+            var addr = addresses.get(0);
+            if (addr.getCity() != null && addr.getStreet() != null) {
                 completedFields++;
             }
         }

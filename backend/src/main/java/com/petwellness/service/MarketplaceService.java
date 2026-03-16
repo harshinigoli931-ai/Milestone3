@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,13 +22,16 @@ public class MarketplaceService {
     private final ProductRepository productRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final AddressRepository addressRepository;
 
     public MarketplaceService(ProductRepository productRepository,
             OrderRepository orderRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            AddressRepository addressRepository) {
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
+        this.addressRepository = addressRepository;
     }
 
     // ========== Admin: Product Management ==========
@@ -39,7 +43,7 @@ public class MarketplaceService {
                 .description(request.getDescription())
                 .category(ProductCategory.valueOf(request.getCategory()))
                 .price(request.getPrice())
-                .stockQuantity(request.getStockQuantity())
+                .stock(request.getStock())
                 .imageUrl(request.getImageUrl())
                 .active(true)
                 .build();
@@ -49,24 +53,42 @@ public class MarketplaceService {
 
     @Transactional
     public ProductResponse updateProduct(Long productId, ProductRequest request) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        System.out.println("Updating product ID: " + productId + " with request: " + request);
+        try {
+            Product product = productRepository.findById(productId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + productId));
 
-        if (request.getName() != null)
-            product.setName(request.getName());
-        if (request.getDescription() != null)
-            product.setDescription(request.getDescription());
-        if (request.getCategory() != null)
-            product.setCategory(ProductCategory.valueOf(request.getCategory()));
-        if (request.getPrice() != null)
-            product.setPrice(request.getPrice());
-        if (request.getStockQuantity() != null)
-            product.setStockQuantity(request.getStockQuantity());
-        if (request.getImageUrl() != null)
-            product.setImageUrl(request.getImageUrl());
+            if (request.getName() != null && !request.getName().trim().isEmpty())
+                product.setName(request.getName());
+            
+            if (request.getDescription() != null)
+                product.setDescription(request.getDescription());
+            
+            if (request.getCategory() != null && !request.getCategory().trim().isEmpty()) {
+                try {
+                    product.setCategory(ProductCategory.valueOf(request.getCategory().toUpperCase()));
+                } catch (IllegalArgumentException e) {
+                    throw new BadRequestException("Invalid product category: " + request.getCategory());
+                }
+            }
+            
+            if (request.getPrice() != null)
+                product.setPrice(request.getPrice());
+            
+            if (request.getStock() != null)
+                product.setStock(request.getStock());
+            
+            if (request.getImageUrl() != null && !request.getImageUrl().trim().isEmpty())
+                product.setImageUrl(request.getImageUrl());
 
-        product = productRepository.save(product);
-        return mapToProductResponse(product);
+            product = productRepository.save(product);
+            System.out.println("Product updated successfully: " + product.getId());
+            return mapToProductResponse(product);
+        } catch (Exception e) {
+            System.err.println("Error updating product: " + e.getMessage());
+            e.printStackTrace();
+            throw e;
+        }
     }
 
     @Transactional
@@ -79,16 +101,22 @@ public class MarketplaceService {
 
     public List<OrderResponse> getAllOrders() {
         return orderRepository.findAll().stream()
-                .map(this::mapToOrderResponse).collect(Collectors.toList());
+                .map(this::mapToResponse).collect(Collectors.toList());
     }
 
     @Transactional
     public OrderResponse updateOrderStatus(Long orderId, String status) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+                .orElseThrow(() -> new RuntimeException("Order not found"));
         order.setStatus(OrderStatus.valueOf(status));
         order = orderRepository.save(order);
-        return mapToOrderResponse(order);
+        return mapToResponse(order);
+    }
+
+    public OrderResponse getOrderById(Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+        return mapToResponse(order);
     }
 
     // ========== Owner: Browsing & Ordering ==========
@@ -124,7 +152,7 @@ public class MarketplaceService {
                 throw new BadRequestException("Product is not available: " + product.getName());
             }
 
-            if (product.getStockQuantity() < itemReq.getQuantity()) {
+            if (product.getStock() < itemReq.getQuantity()) {
                 throw new BadRequestException("Insufficient stock for: " + product.getName());
             }
 
@@ -140,7 +168,7 @@ public class MarketplaceService {
             orderItems.add(item);
 
             // Reduce stock
-            product.setStockQuantity(product.getStockQuantity() - itemReq.getQuantity());
+            product.setStock(product.getStock() - itemReq.getQuantity());
             productRepository.save(product);
         }
 
@@ -148,7 +176,11 @@ public class MarketplaceService {
                 .owner(owner)
                 .totalAmount(totalAmount)
                 .status(OrderStatus.CONFIRMED)
+                .paymentMethod(request.getPaymentMethod())
+                .paymentStatus(request.getPaymentMethod().equals("COD") ? "PENDING" : "PAID")
+                .deliveryAddressId(request.getAddressId())
                 .shippingAddress(request.getShippingAddress())
+                .expectedDeliveryDate(LocalDateTime.now().plusDays(5)) // Expected: +5 days
                 .items(new ArrayList<>())
                 .build();
         order = orderRepository.save(order);
@@ -159,23 +191,57 @@ public class MarketplaceService {
         order.setItems(orderItems);
         order = orderRepository.save(order);
 
-        return mapToOrderResponse(order);
+        return mapToResponse(order);
+    }
+
+    @Transactional
+    public OrderResponse cancelOrder(Long userId, Long orderId, String reason) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+
+        if (!order.getOwner().getId().equals(userId)) {
+            throw new RuntimeException("Unauthorized cancellation");
+        }
+
+        if (order.getStatus() == OrderStatus.SHIPPED || order.getStatus() == OrderStatus.DELIVERED) {
+            throw new RuntimeException("Order cannot be cancelled after shipping");
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        order.setCancellationReason(reason);
+        order = orderRepository.save(order);
+        return mapToResponse(order);
     }
 
     public List<OrderResponse> getOrderHistory(Long ownerId) {
         return orderRepository.findByOwnerIdOrderByCreatedAtDesc(ownerId).stream()
-                .map(this::mapToOrderResponse).collect(Collectors.toList());
+                .map(this::mapToResponse).collect(Collectors.toList());
     }
 
     private ProductResponse mapToProductResponse(Product p) {
         return ProductResponse.builder()
                 .id(p.getId()).name(p.getName()).description(p.getDescription())
                 .category(p.getCategory().name()).price(p.getPrice())
-                .stockQuantity(p.getStockQuantity()).imageUrl(p.getImageUrl())
+                .stock(p.getStock()).imageUrl(p.getImageUrl())
                 .active(p.isActive()).build();
     }
 
-    private OrderResponse mapToOrderResponse(Order o) {
+    private OrderResponse mapToResponse(Order o) {
+        OrderResponse.AddressDetails addressDetails = null;
+        if (o.getDeliveryAddressId() != null) {
+            Address addr = addressRepository.findById(o.getDeliveryAddressId()).orElse(null);
+            if (addr != null) {
+                addressDetails = OrderResponse.AddressDetails.builder()
+                        .fullName(addr.getFullName())
+                        .phone(addr.getPhone())
+                        .street(addr.getStreet())
+                        .city(addr.getCity())
+                        .state(addr.getState())
+                        .postalCode(addr.getPostalCode())
+                        .build();
+            }
+        }
+
         return OrderResponse.builder()
                 .id(o.getId())
                 .totalAmount(o.getTotalAmount())
@@ -183,6 +249,12 @@ public class MarketplaceService {
                 .shippingAddress(o.getShippingAddress())
                 .ownerEmail(o.getOwner().getEmail())
                 .createdAt(o.getCreatedAt())
+                .transactionId(o.getTransactionId())
+                .paymentStatus(o.getPaymentStatus())
+                .paymentMethod(o.getPaymentMethod())
+                .expectedDeliveryDate(o.getExpectedDeliveryDate())
+                .cancellationReason(o.getCancellationReason())
+                .deliveryAddress(addressDetails)
                 .items(o.getItems().stream()
                         .map(i -> OrderResponse.OrderItemResponse.builder()
                                 .id(i.getId())

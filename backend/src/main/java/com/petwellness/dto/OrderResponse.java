@@ -17,7 +17,23 @@ public class OrderResponse {
     private String shippingAddress;
     private String ownerEmail;
     private LocalDateTime createdAt;
+    private String transactionId;
+    private String paymentStatus;
+    private String paymentMethod;
+    private LocalDateTime expectedDeliveryDate;
+    private String cancellationReason;
+    private AddressDetails deliveryAddress;
     private List<OrderItemResponse> items;
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+    public static class AddressDetails {
+        private String fullName;
+        private String phone;
+        private String street;
+        private String city;
+        private String state;
+        private String postalCode;
+    }
 
     @Getter
     @Setter

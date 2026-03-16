@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import api from "./api";
+import { toast } from "react-toastify";
 
 export default function ReminderSystem() {
     const [name, setName] = useState("");
@@ -10,7 +11,7 @@ export default function ReminderSystem() {
 
     const addVaccine = () => {
         if (!name || !vaccine || !date || !email) {
-            alert("Please fill all fields!");
+            toast.error("Please fill all fields!");
             return;
         }
 
@@ -23,8 +24,8 @@ export default function ReminderSystem() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(vaccineData)
         })
-            .then(() => alert("Vaccination saved successfully!"))
-            .catch(console.error);
+            .then(() => toast.success("Vaccination saved successfully!"))
+            .catch(() => toast.error("Operation failed"));
 
         setName("");
         setVaccine("");

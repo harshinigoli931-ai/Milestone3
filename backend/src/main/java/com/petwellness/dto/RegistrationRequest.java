@@ -38,4 +38,9 @@ public class RegistrationRequest {
     private String designation;
     private String industry;
     private Integer yearsOfExperience;
+
+    // Pet and Education
+    private Integer numberOfPets;
+    private String petTypes;
+    private String education;
 }

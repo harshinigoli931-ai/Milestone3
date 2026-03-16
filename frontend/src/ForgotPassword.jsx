@@ -1,6 +1,7 @@
 import { useState } from "react";
 import api from "./api";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 export default function ForgotPassword() {
     const navigate = useNavigate();
@@ -46,12 +47,12 @@ export default function ForgotPassword() {
         try {
             const response = await api.post(`/auth/forgot-password?email=${encodeURIComponent(form.email)}`);
             if (response.data.success) {
-                alert("OTP sent! Please check your email.");
+                toast.success("OTP sent! Please check your email.");
                 setStep(2);
             }
         } catch (err) {
             console.error(err);
-            alert(err.response?.data?.message || "Failed to send OTP. Account may not exist.");
+            toast.error(err.response?.data?.message || "Failed to send OTP. Account may not exist.");
         } finally {
             setLoading(false);
         }
@@ -69,12 +70,12 @@ export default function ForgotPassword() {
                 newPassword: form.newPassword
             });
             if (response.data.success) {
-                alert("Password reset successfully! You can now log in.");
+                toast.success("Password reset successfully! You can now log in.");
                 navigate("/login");
             }
         } catch (err) {
             console.error(err);
-            alert(err.response?.data?.message || "Failed to reset password. OTP might be invalid or expired.");
+            toast.error(err.response?.data?.message || "Failed to reset password. OTP might be invalid or expired.");
         } finally {
             setLoading(false);
         }

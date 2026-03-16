@@ -4,6 +4,7 @@ import com.petwellness.entity.enums.ConsultationType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,7 +38,10 @@ public class AppointmentSlot {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "vet_id")
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Vet vet;
+
+    private String vetName;
 
     private boolean available;
     private Integer maxBookings;

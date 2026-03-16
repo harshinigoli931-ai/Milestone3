@@ -14,7 +14,7 @@ public class ProductResponse {
     private String description;
     private String category;
     private BigDecimal price;
-    private Integer stockQuantity;
+    private Integer stock;
     private String imageUrl;
     private boolean active;
 }

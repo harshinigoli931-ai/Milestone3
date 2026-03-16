@@ -9,6 +9,8 @@ import java.util.List;
 @AllArgsConstructor
 public class OrderRequest {
     private String shippingAddress;
+    private Long addressId;
+    private String paymentMethod;
     private List<OrderItemRequest> items;
 
     @Getter

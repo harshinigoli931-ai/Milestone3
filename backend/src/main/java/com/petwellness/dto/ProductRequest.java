@@ -12,6 +12,6 @@ public class ProductRequest {
     private String description;
     private String category; // FOOD, TOYS, MEDICINES, ACCESSORIES
     private BigDecimal price;
-    private Integer stockQuantity;
+    private Integer stock;
     private String imageUrl;
 }

@@ -32,14 +32,17 @@ public class Product {
     @Column(nullable = false)
     private ProductCategory category;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(nullable = false)
     private BigDecimal price;
 
     @Column(nullable = false)
-    private Integer stockQuantity;
+    private Integer stock;
 
+    @Column(nullable = false)
     private String imageUrl;
-    private boolean active;
+
+    @Column(nullable = false)
+    private boolean active = true;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

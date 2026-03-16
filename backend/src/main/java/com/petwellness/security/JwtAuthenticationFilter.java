@@ -30,15 +30,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
         String token = getTokenFromRequest(request);
 
-        if (StringUtils.hasText(token) && tokenProvider.validateToken(token)) {
-            String email = tokenProvider.getEmailFromToken(token);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+        if (StringUtils.hasText(token)) {
+            System.out.println("JwtFilter: Validating token...");
+            if (tokenProvider.validateToken(token)) {
+                String email = tokenProvider.getEmailFromToken(token);
+                System.out.println("JwtFilter: Token valid for: " + email);
+                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+                System.out.println("JwtFilter: Loaded user with authorities: " + userDetails.getAuthorities());
 
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails,
-                    null, userDetails.getAuthorities());
-            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails,
+                        null, userDetails.getAuthorities());
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                System.out.println("JwtFilter: Authentication set in security context");
+            } else {
+                System.out.println("JwtFilter: Token validation failed");
+            }
         }
 
         filterChain.doFilter(request, response);

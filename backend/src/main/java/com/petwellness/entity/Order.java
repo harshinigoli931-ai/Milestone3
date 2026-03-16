@@ -28,7 +28,7 @@ public class Order {
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(nullable = false)
     private BigDecimal totalAmount;
 
     @Enumerated(EnumType.STRING)
@@ -40,6 +40,15 @@ public class Order {
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();
+
+    private String razorpayOrderId;
+    private String transactionId;
+    private String paymentStatus;
+    private String paymentMethod;
+
+    private Long deliveryAddressId;
+    private LocalDateTime expectedDeliveryDate;
+    private String cancellationReason;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

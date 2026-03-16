@@ -25,4 +25,8 @@ public class PersonalInformation {
     private String phone;
     private LocalDate dateOfBirth;
     private String gender;
+
+    private Integer numberOfPets;
+    private String petTypes;
+    private String education;
 }

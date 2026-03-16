@@ -1,6 +1,7 @@
 import { useState } from "react";
 import api from "./api";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -89,12 +90,12 @@ export default function Register() {
       try {
         const response = await api.post("/auth/register", payload);
         if (response.data.success) {
-          alert(response.data.message || "Registration Successful! OTP sent to your email.");
+          toast.success(response.data.message || "Registration Successful! OTP sent to your email.");
           setStep(2);
         }
       } catch (err) {
         console.error(err);
-        alert(err.response?.data?.message || "Registration Failed");
+        toast.error(err.response?.data?.message || "Registration Failed");
       }
     } else {
       try {
@@ -105,12 +106,12 @@ export default function Register() {
         });
 
         if (response.data.success) {
-          alert("Account verified successfully! Please login.");
+          toast.success("Account verified successfully! Please login.");
           navigate("/login");
         }
       } catch (err) {
         console.error(err);
-        alert(err.response?.data?.message || "Invalid OTP");
+        toast.error(err.response?.data?.message || "Invalid OTP");
       }
     }
   };

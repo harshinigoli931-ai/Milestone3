@@ -14,5 +14,6 @@ public class AppointmentSlotRequest {
     private LocalTime endTime;
     private String consultationType; // ONLINE, CLINIC
     private Long vetId;
+    private String vetName;
     private Integer maxBookings;
 }

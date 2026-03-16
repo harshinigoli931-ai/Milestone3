@@ -20,11 +20,10 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    @Operation(summary = "Login - Admin gets token directly, Pet Owner gets OTP")
-    public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
-        LoginResponse response = authService.login(request);
-        return ResponseEntity
-                .ok(ApiResponse.success(response.isOtpRequired() ? "OTP sent" : "Login successful", response));
+    @Operation(summary = "Login - Standard authentication returning token")
+    public ResponseEntity<AuthResponse> login(@RequestBody AuthRequest request) {
+        AuthResponse response = authService.authenticate(request);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/verify-otp")

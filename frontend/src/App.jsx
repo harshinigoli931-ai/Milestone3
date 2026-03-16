@@ -5,6 +5,12 @@ import ForgotPassword from "./ForgotPassword";
 import Landing_page from "./Landing_page";
 import AdminDashboard from "./AdminDashboard";
 import PetOwnerDashboard from "./PetOwnerDashboard";
+import Cart from "./Cart";
+import Checkout from "./Checkout";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+const Dashboard = PetOwnerDashboard;
 
 function ProtectedRoute({ children, requiredRole }) {
   const token = localStorage.getItem("token");
@@ -14,11 +20,15 @@ function ProtectedRoute({ children, requiredRole }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole) {
-    const normalizedRole = role?.replace("ROLE_", "");
-    if (normalizedRole !== requiredRole) {
-      // Redirect to the appropriate dashboard
-      if (normalizedRole === "ADMIN") return <Navigate to="/admin" replace />;
+  // Normalize role from backend like ROLE_ADMIN → ADMIN
+  const normalizedRole = role
+    ? role.replace("ROLE_", "").toUpperCase()
+    : null;
+
+  if (requiredRole && normalizedRole !== requiredRole) {
+    if (normalizedRole === "ADMIN") {
+      return <Navigate to="/admin" replace />;
+    } else {
       return <Navigate to="/dashboard" replace />;
     }
   }
@@ -29,11 +39,15 @@ function ProtectedRoute({ children, requiredRole }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <ToastContainer position="top-right" autoClose={3000} />
+
       <Routes>
         <Route path="/" element={<Landing_page />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+
+        {/* ADMIN ROUTE */}
         <Route
           path="/admin"
           element={
@@ -42,15 +56,38 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        {/* PET OWNER DASHBOARD */}
         <Route
           path="/dashboard"
           element={
             <ProtectedRoute requiredRole="PET_OWNER">
-              <PetOwnerDashboard />
+              <Dashboard />
             </ProtectedRoute>
           }
         />
-        {/* Catch-all */}
+
+        {/* CART */}
+        <Route
+          path="/cart"
+          element={
+            <ProtectedRoute requiredRole="PET_OWNER">
+              <Cart />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* CHECKOUT */}
+        <Route
+          path="/checkout"
+          element={
+            <ProtectedRoute requiredRole="PET_OWNER">
+              <Checkout />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* FALLBACK */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

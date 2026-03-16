@@ -69,6 +69,7 @@ public class AppointmentService {
                 .endTime(request.getEndTime())
                 .consultationType(ConsultationType.valueOf(request.getConsultationType()))
                 .vet(vet)
+                .vetName(request.getVetName())
                 .available(true)
                 .maxBookings(request.getMaxBookings() != null ? request.getMaxBookings() : calculatedMax)
                 .currentBookings(0)
@@ -84,6 +85,7 @@ public class AppointmentService {
         slot.setStartTime(request.getStartTime());
         slot.setEndTime(request.getEndTime());
         slot.setConsultationType(ConsultationType.valueOf(request.getConsultationType()));
+        slot.setVetName(request.getVetName());
 
         if (request.getVetId() != null) {
             Vet vet = vetRepository.findById(request.getVetId())
@@ -230,6 +232,12 @@ public class AppointmentService {
                 .collect(Collectors.toList());
     }
 
+    public List<AppointmentResponse> getAllAppointments() {
+        return appointmentRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
     public List<String> getBookedTimesForSlot(Long slotId) {
         return appointmentRepository.findBySlotIdAndStatusNot(slotId, AppointmentStatus.CANCELLED)
                 .stream()
@@ -248,7 +256,7 @@ public class AppointmentService {
                 .preferredTime(appt.getPreferredTime())
                 .consultationType(appt.getConsultationType() != null ? appt.getConsultationType().name()
                         : appt.getSlot().getConsultationType().name())
-                .vetName(appt.getSlot().getVet() != null ? appt.getSlot().getVet().getName() : "Unknown")
+                .vetName(appt.getSlot().getVet() != null ? appt.getSlot().getVet().getName() : (appt.getSlot().getVetName() != null ? appt.getSlot().getVetName() : "Dr. Not Assigned"))
                 .petName(appt.getPet().getName())
                 .petId(appt.getPet().getId())
                 .status(appt.getStatus().name())

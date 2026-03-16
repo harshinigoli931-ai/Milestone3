@@ -44,11 +44,12 @@ public class DataInitializer implements CommandLineRunner {
     private final VetRepository vetRepository;
     private final ProductRepository productRepository;
 
-    @Value("${app.default-admin.email:admin@petwellness.com}")
+    @Value("${app.admin.email:admin@petwellness.com}")
     private String adminEmail;
 
-    @Value("${app.default-admin.password:admin123}")
+    @Value("${app.admin.password:admin123}")
     private String adminPassword;
+
 
     public DataInitializer(UserRepository userRepository, ApiKeyRepository apiKeyRepository,
             AppointmentSlotRepository appointmentSlotRepository,
@@ -119,16 +120,28 @@ public class DataInitializer implements CommandLineRunner {
             log.info("==============================================");
         } else {
             log.info("Default admin already exists: {}", adminEmail);
-            // Ensure admin is enabled even if it exists
+            // Ensure admin is enabled and password matches config even if it exists
             User existingAdmin = userRepository.findByEmail(adminEmail).get();
+            boolean updated = false;
+            
             if (!existingAdmin.isEnabled() || existingAdmin.getAccountStatus() != AccountStatus.APPROVED) {
                 existingAdmin.setEnabled(true);
                 existingAdmin.setAccountStatus(AccountStatus.APPROVED);
-                userRepository.save(existingAdmin);
+                updated = true;
                 log.info("Forced update: Enabled default admin account.");
+            }
+            
+            // Re-encode and update password to be sure it matches application.properties
+            existingAdmin.setPassword(passwordEncoder.encode(adminPassword));
+            updated = true;
+            
+            if (updated) {
+                userRepository.save(existingAdmin);
+                log.info("Forced update: Admin credentials synchronized with configuration.");
             }
         }
     }
+
 
     private void createDefaultApiKey() {
         if (apiKeyRepository.findAll().isEmpty()) {
@@ -315,7 +328,7 @@ public class DataInitializer implements CommandLineRunner {
                     .description("Nutritious dog food rich in protein for healthy growth.")
                     .category(ProductCategory.FOOD)
                     .price(new BigDecimal("500.00"))
-                    .stockQuantity(50)
+                    .stock(50)
                     .active(true)
                     .build());
             productRepository.save(Product.builder()
@@ -323,7 +336,7 @@ public class DataInitializer implements CommandLineRunner {
                     .description("Healthy and balanced meal specially made for cats.")
                     .category(ProductCategory.FOOD)
                     .price(new BigDecimal("450.00"))
-                    .stockQuantity(40)
+                    .stock(40)
                     .active(true)
                     .build());
             // TOYS
@@ -332,7 +345,7 @@ public class DataInitializer implements CommandLineRunner {
                     .description("Durable chew toy that keeps dogs active and entertained.")
                     .category(ProductCategory.TOYS)
                     .price(new BigDecimal("250.00"))
-                    .stockQuantity(100)
+                    .stock(100)
                     .active(true)
                     .build());
             productRepository.save(Product.builder()
@@ -340,7 +353,7 @@ public class DataInitializer implements CommandLineRunner {
                     .description("Interactive toy that keeps cats playful and happy.")
                     .category(ProductCategory.TOYS)
                     .price(new BigDecimal("200.00"))
-                    .stockQuantity(80)
+                    .stock(80)
                     .active(true)
                     .build());
             // ACCESSORIES
@@ -349,7 +362,7 @@ public class DataInitializer implements CommandLineRunner {
                     .description("Comfortable adjustable collar for everyday use.")
                     .category(ProductCategory.ACCESSORIES)
                     .price(new BigDecimal("150.00"))
-                    .stockQuantity(60)
+                    .stock(60)
                     .active(true)
                     .build());
             productRepository.save(Product.builder()
@@ -357,7 +370,7 @@ public class DataInitializer implements CommandLineRunner {
                     .description("Strong leash designed for safe outdoor walks.")
                     .category(ProductCategory.ACCESSORIES)
                     .price(new BigDecimal("300.00"))
-                    .stockQuantity(45)
+                    .stock(45)
                     .active(true)
                     .build());
             productRepository.save(Product.builder()
@@ -365,7 +378,7 @@ public class DataInitializer implements CommandLineRunner {
                     .description("Soft and cozy bed designed for maximum pet comfort.")
                     .category(ProductCategory.ACCESSORIES)
                     .price(new BigDecimal("900.00"))
-                    .stockQuantity(20)
+                    .stock(20)
                     .active(true)
                     .build());
             // GROOMING
@@ -374,7 +387,7 @@ public class DataInitializer implements CommandLineRunner {
                     .description("Gentle shampoo that keeps your pet clean and healthy.")
                     .category(ProductCategory.GROOMING)
                     .price(new BigDecimal("350.00"))
-                    .stockQuantity(30)
+                    .stock(30)
                     .active(true)
                     .build());
 

@@ -2,6 +2,9 @@ import { useEffect, useState, useMemo } from "react";
 import api from "./api";
 import { useNavigate } from "react-router-dom";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { toast } from "react-toastify";
+
+
 
 // Convert 24h time string (e.g. "14:00:00" or "14:00") to 12h format ("2:00 PM")
 const format12h = (t) => {
@@ -52,7 +55,7 @@ const TABS = [
     { id: "pending", label: "Dashboard", icon: icons.pending },
     { id: "users", label: "All Users", icon: icons.users },
     { id: "create", label: "Create Owner", icon: icons.plus },
-    { id: "slots", label: "Book Vet Appointment", icon: icons.calendar },
+    { id: "slots", label: "Appointment Slots", icon: icons.calendar },
     { id: "products", label: "Marketplace", icon: icons.shop },
     { id: "orders", label: "Orders", icon: icons.shop }, // Reuse shop icon for now
 ];
@@ -77,11 +80,11 @@ function Badge({ status }) {
 
 function Modal({ title, onClose, children }) {
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4">
-                <div className="flex justify-between items-center p-6 border-b">
-                    <h3 className="text-lg font-bold text-gray-800">{title}</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl scale-in">
+                <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                    <h3 className="font-bold text-gray-800 text-lg">{title}</h3>
+                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl transition-colors">×</button>
                 </div>
                 <div className="p-6">{children}</div>
             </div>
@@ -89,8 +92,27 @@ function Modal({ title, onClose, children }) {
     );
 }
 
+function ConfirmDialog({ message, onConfirm, onCancel }) {
+    if (!message) return null;
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+            <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl scale-in p-6">
+                <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">⚠️</div>
+                    <h3 className="font-bold text-gray-800 text-lg">Are you sure?</h3>
+                    <p className="text-gray-500 text-sm mt-2">{message}</p>
+                </div>
+                <div className="flex gap-3">
+                    <button onClick={onCancel} className="flex-1 py-3 border border-gray-200 rounded-xl font-bold text-sm text-gray-500 hover:bg-gray-50 transition">Cancel</button>
+                    <button onClick={onConfirm} className="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold text-sm hover:bg-red-600 transition shadow-lg shadow-red-500/20">Confirm</button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Tab: Pending Approvals ────────────────────────────────────────────────
-function PendingTab() {
+function PendingTab({ setConfirmAction }) {
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -107,18 +129,24 @@ function PendingTab() {
 
     const approve = async (id) => {
         try {
-            await api.post(`/admin/owners/${id}/approve`);
-            alert("✅ User approved! Credentials sent by email.");
+            await api.put(`/admin/owners/${id}/approve`);
+            toast.success("User approved! Credentials sent by email.");
             loadPending();
-        } catch (e) { alert(e.response?.data?.message || "Failed"); }
+        } catch (e) { toast.error(e.response?.data?.message || "Operation failed"); }
     };
 
     const reject = async (id) => {
-        if (!window.confirm("Reject this registration?")) return;
-        try {
-            await api.post(`/admin/owners/${id}/reject`);
-            loadPending();
-        } catch (e) { alert(e.response?.data?.message || "Failed"); }
+        setConfirmAction({
+            message: "Reject this registration?",
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/admin/owners/${id}/reject`);
+                    toast.success("Registration rejected");
+                    loadPending();
+                } catch (e) { toast.error(e.response?.data?.message || "Operation failed"); }
+                setConfirmAction(null);
+            }
+        });
     };
 
     if (loading) return <Loader />;
@@ -236,10 +264,10 @@ function CreateOwnerTab() {
         setLoading(true);
         try {
             await api.post("/admin/owners", form);
-            alert("✅ Owner created! Login credentials sent to email.");
+            toast.success("Owner created! Login credentials sent to email.");
             setForm({ email: "", password: "", firstName: "", lastName: "", phone: "", dateOfBirth: "", gender: "MALE", street: "", city: "", state: "", zipCode: "", country: "", companyName: "", designation: "", yearsOfExperience: 0 });
         } catch (e) {
-            alert(e.response?.data?.message || "Failed to create owner");
+            toast.error(e.response?.data?.message || "Failed to create owner");
         } finally {
             setLoading(false);
         }
@@ -290,9 +318,8 @@ function CreateOwnerTab() {
         </div>
     );
 }
-
 // ─── Tab: Appointment Slots ────────────────────────────────────────────────
-function SlotsTab() {
+function SlotsTab({ setConfirmAction }) {
     const [slots, setSlots] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -304,56 +331,80 @@ function SlotsTab() {
             setLoading(true);
             const res = await api.get("/admin/slots");
             const fetchedSlots = res.data.data || [];
-            // Sort descending: newest date/time first
+
             fetchedSlots.sort((a, b) => {
-                const dateTimeA = new Date(`${a.date}T${a.startTime}`);
-                const dateTimeB = new Date(`${b.date}T${b.startTime}`);
-                return dateTimeB - dateTimeA;
+                return new Date(b.date + "T" + b.startTime) - new Date(a.date + "T" + a.startTime);
             });
+
             setSlots(fetchedSlots);
-        } catch (e) { console.error(e); }
-        finally { setLoading(false); }
+        } catch (e) {
+            console.error(e);
+            toast.error("Failed to load slots");
+        } finally {
+            setLoading(false);
+        }
     };
 
-    useEffect(() => { loadSlots(); }, []);
+    useEffect(() => {
+        loadSlots();
+    }, []);
 
     const handleSlotSubmit = async e => {
         e.preventDefault();
         try {
+            const payload = {
+                ...form,
+                startTime: form.startTime.length === 5 ? `${form.startTime}:00` : form.startTime,
+                endTime: form.endTime.length === 5 ? `${form.endTime}:00` : form.endTime
+            };
+
             if (editingSlot) {
-                await api.put(`/admin/slots/${editingSlot.id}`, form);
-                alert("✅ Slot updated!");
+                await api.put(`/admin/slots/${editingSlot.id}`, payload);
+                toast.success("Slot updated successfully");
             } else {
-                await api.post("/admin/slots", form);
-                alert("✅ Slot created!");
+                await api.post("/admin/slots", payload);
+                toast.success("Slot created successfully");
             }
+
             setShowModal(false);
             setForm({ date: "", startTime: "", endTime: "", consultationType: "CLINIC", vetName: "" });
             setEditingSlot(null);
             loadSlots();
-        } catch (e) { alert(e.response?.data?.message || "Failed"); }
+
+        } catch (e) {
+            toast.error(e.response?.data?.message || "Failed to save slot");
+        }
     };
 
     const deleteSlot = async (id) => {
-        if (!window.confirm("Remove this slot?")) return;
-        try {
-            await api.delete(`/admin/slots/${id}`);
-            alert("✅ Slot deleted!");
-            loadSlots();
-        } catch (e) { alert(e.response?.data?.message || "Failed to delete slot"); }
+        setConfirmAction({
+            message: "Are you sure you want to delete this appointment slot?",
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/admin/slots/${id}`);
+                    toast.success("Slot deleted successfully");
+                    loadSlots();
+                } catch (e) {
+                    toast.error(e.response?.data?.message || "Failed to delete slot");
+                }
+                setConfirmAction(null);
+            }
+        });
     };
 
     const openEdit = (slot) => {
         setEditingSlot(slot);
-        // format times to HH:mm for the time inputs if needed, usually they come in as HH:mm or HH:mm:ss
+
         const formatTime = (t) => t ? t.substring(0, 5) : "";
+
         setForm({
             date: slot.date,
             startTime: formatTime(slot.startTime),
             endTime: formatTime(slot.endTime),
             consultationType: slot.consultationType,
-            vetName: slot.vetName || ""
+            vetName: (slot.vet?.name ? slot.vet.name : slot.vetName) || ""
         });
+
         setShowModal(true);
     };
 
@@ -366,8 +417,11 @@ function SlotsTab() {
     const toggle = async (id) => {
         try {
             await api.put(`/admin/slots/${id}/toggle`);
+            toast.success("Slot availability updated");
             loadSlots();
-        } catch (e) { alert("Failed to toggle slot"); }
+        } catch (e) {
+            toast.error("Failed to toggle slot");
+        }
     };
 
     const inp = "w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-400 outline-none";
@@ -378,8 +432,11 @@ function SlotsTab() {
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-gray-800">Appointment Slots</h2>
-                <button onClick={openCreate}
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition flex items-center gap-2 shadow-md">
+
+                <button
+                    onClick={openCreate}
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition flex items-center gap-2 shadow-md"
+                >
                     {icons.plus} New Slot
                 </button>
             </div>
@@ -388,77 +445,138 @@ function SlotsTab() {
                 <EmptyState icon="📅" message="No appointment slots created yet." />
             ) : (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+
                     {slots.map(slot => (
                         <div key={slot.id} className="border border-gray-200 rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition">
+
                             <div className="flex justify-between items-start mb-3">
                                 <span className={`text-xs px-2 py-1 rounded-full font-bold ${slot.available ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
                                     {slot.available ? "Available" : "Unavailable"}
                                 </span>
+
                                 <span className={`text-xs px-2 py-1 rounded-full ${slot.consultationType === "ONLINE" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"}`}>
                                     {slot.consultationType}
                                 </span>
                             </div>
-                            <p className="font-bold text-gray-800 text-sm mb-1">📅 {slot.date}</p>
-                            <p className="text-gray-600 text-sm mb-1">⏰ {format12h(slot.startTime)} – {format12h(slot.endTime)}</p>
-                            {slot.vetName && <p className="text-gray-500 text-xs mb-3">🩺 Dr. {slot.vetName}</p>}
+
+                            <p className="font-bold text-gray-800 text-sm mb-1">📅 {slot.date?.split("-").reverse().join("-")}</p>
+
+                            <p className="text-gray-600 text-sm mb-1">
+                                ⏰ {format12h(slot.startTime)} – {format12h(slot.endTime)}
+                            </p>
+
+                            {(slot.vet?.name || slot.vetName) && (
+                                <p className="text-gray-500 text-xs mb-3">
+                                    🩺 Dr. {(slot.vet?.name || slot.vetName || "").replace(/^Dr\.?\s*/i, "")}
+                                </p>
+                            )}
+
                             <div className="flex gap-2">
-                                <button onClick={() => toggle(slot.id)}
-                                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${slot.available ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-50 text-green-600 hover:bg-green-100"}`}>
+
+                                <button
+                                    onClick={() => toggle(slot.id)}
+                                    className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition ${slot.available ? "bg-red-50 text-red-600 hover:bg-red-100" : "bg-green-50 text-green-600 hover:bg-green-100"}`}
+                                >
                                     {slot.available ? "Mark Unavailable" : "Mark Available"}
                                 </button>
-                                <button onClick={() => openEdit(slot)}
-                                    className="px-3 py-1.5 border border-orange-500 text-orange-500 rounded-lg text-xs font-medium hover:bg-orange-50 transition">
+
+                                <button
+                                    onClick={() => openEdit(slot)}
+                                    className="px-3 py-1.5 border border-orange-500 text-orange-500 rounded-lg text-xs font-medium hover:bg-orange-50 transition"
+                                >
                                     Edit
                                 </button>
-                                <button onClick={() => deleteSlot(slot.id)}
-                                    className="px-3 py-1.5 border border-red-400 text-red-500 rounded-lg text-xs font-medium hover:bg-red-50 transition">
+
+                                <button
+                                    onClick={() => deleteSlot(slot.id)}
+                                    className="px-3 py-1.5 border border-red-400 text-red-500 rounded-lg text-xs font-medium hover:bg-red-50 transition"
+                                >
                                     Delete
                                 </button>
+
                             </div>
+
                         </div>
                     ))}
+
                 </div>
             )}
 
             {showModal && (
                 <Modal title={editingSlot ? "Edit Appointment Slot" : "Create Appointment Slot"} onClose={() => setShowModal(false)}>
+
                     <form onSubmit={handleSlotSubmit} className="space-y-4">
+
                         <div>
                             <label className="text-sm font-medium text-gray-700 mb-1 block">Date *</label>
-                            <input type="date" required value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} className={inp} />
+                            <input type="date" required value={form.date}
+                                onChange={e => setForm({ ...form, date: e.target.value })}
+                                className={inp}
+                            />
                         </div>
+
                         <div className="grid grid-cols-2 gap-4">
+
                             <div>
                                 <label className="text-sm font-medium text-gray-700 mb-1 block">Start Time *</label>
-                                <input type="time" required value={form.startTime} onChange={e => setForm({ ...form, startTime: e.target.value })} className={inp} />
+                                <input type="time" required value={form.startTime}
+                                    onChange={e => setForm({ ...form, startTime: e.target.value })}
+                                    className={inp}
+                                />
                             </div>
+
                             <div>
                                 <label className="text-sm font-medium text-gray-700 mb-1 block">End Time *</label>
-                                <input type="time" required value={form.endTime} onChange={e => setForm({ ...form, endTime: e.target.value })} className={inp} />
+                                <input type="time" required value={form.endTime}
+                                    onChange={e => setForm({ ...form, endTime: e.target.value })}
+                                    className={inp}
+                                />
                             </div>
+
                         </div>
+
                         <div>
                             <label className="text-sm font-medium text-gray-700 mb-1 block">Consultation Type</label>
-                            <select value={form.consultationType} onChange={e => setForm({ ...form, consultationType: e.target.value })} className={inp}>
+                            <select value={form.consultationType}
+                                onChange={e => setForm({ ...form, consultationType: e.target.value })}
+                                className={inp}
+                            >
                                 <option value="CLINIC">Clinic</option>
                                 <option value="ONLINE">Online</option>
                             </select>
                         </div>
+
                         <div>
                             <label className="text-sm font-medium text-gray-700 mb-1 block">Veterinarian Name</label>
-                            <input value={form.vetName} onChange={e => setForm({ ...form, vetName: e.target.value })} className={inp} placeholder="Dr. Smith" />
+                            <input type="text"
+                                value={form.vetName}
+                                onChange={e => setForm({ ...form, vetName: e.target.value })}
+                                className={inp}
+                                placeholder="E.g. Dr. John Doe"
+                            />
                         </div>
+
                         <div className="flex gap-3 pt-2">
-                            <button type="button" onClick={() => setShowModal(false)}
-                                className="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition">
+
+                            <button
+                                type="button"
+                                onClick={() => setShowModal(false)}
+                                className="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition"
+                            >
                                 Cancel
                             </button>
-                            <button type="submit"
-                                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-medium transition">
+
+                            <button
+                                type="submit"
+                                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2.5 rounded-lg font-medium transition"
+                            >
                                 {editingSlot ? "Update Slot" : "Create Slot"}
                             </button>
+
                         </div>
+
                     </form>
+
                 </Modal>
             )}
         </div>
@@ -466,13 +584,13 @@ function SlotsTab() {
 }
 
 // ─── Tab: Products / Marketplace ───────────────────────────────────────────
-function ProductsTab() {
+function ProductsTab({ setConfirmAction }) {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
     const [editing, setEditing] = useState(null);
     const [category, setCategory] = useState("");
-    const [form, setForm] = useState({ name: "", description: "", price: "", stockQuantity: "", category: "FOOD", imageUrl: "" });
+    const [form, setForm] = useState({ name: "", description: "", price: "", stock: "", category: "FOOD", imageUrl: "" });
 
     const loadProducts = async () => {
         try {
@@ -487,38 +605,70 @@ function ProductsTab() {
 
     const openEdit = (p) => {
         setEditing(p);
-        setForm({ name: p.name, description: p.description, price: p.price, stockQuantity: p.stockQuantity, category: p.category, imageUrl: p.imageUrl || "" });
+        setForm({ name: p.name, description: p.description, price: p.price, stock: p.stock, category: p.category, imageUrl: p.imageUrl || "" });
         setShowModal(true);
     };
 
     const openCreate = () => {
         setEditing(null);
-        setForm({ name: "", description: "", price: "", stockQuantity: "", category: "FOOD", imageUrl: "" });
+        setForm({ name: "", description: "", price: "", stock: "", category: "FOOD", imageUrl: "" });
         setShowModal(true);
     };
 
     const handleSubmit = async e => {
         e.preventDefault();
-        const payload = { ...form, price: parseFloat(form.price), stockQuantity: parseInt(form.stockQuantity) };
+
+        if (!form.imageUrl.trim()) {
+            toast.error("Please enter product image URL");
+            return;
+        }
+
+        const payload = {
+            name: form.name,
+            description: form.description,
+            price: parseFloat(form.price),
+            stock: parseInt(form.stock),
+            category: form.category,
+            imageUrl: form.imageUrl
+        };
+
+        console.log("Sending product data:", payload);
+
         try {
             if (editing) {
-                await api.put(`/admin/products/${editing.id}`, payload);
-                alert("✅ Product updated!");
+                await api.put(`/marketplace/products/${editing.id}`, {
+                    name: form.name,
+                    description: form.description,
+                    price: Number(form.price),
+                    stock: Number(form.stock),
+                    category: form.category,
+                    imageUrl: form.imageUrl
+                });
+                toast.success("Product updated successfully");
             } else {
-                await api.post("/admin/products", payload);
-                alert("✅ Product created!");
+                await api.post("/marketplace/products", payload);
+                toast.success("Product added successfully");
             }
             setShowModal(false);
             loadProducts();
-        } catch (e) { alert(e.response?.data?.message || "Failed"); }
+        } catch (e) {
+            console.error("Product Save Error:", e);
+            toast.error(e.response?.data?.message || "Failed to save product");
+        }
     };
 
     const deleteProduct = async (id) => {
-        if (!window.confirm("Remove this product from marketplace?")) return;
-        try {
-            await api.delete(`/admin/products/${id}`);
-            loadProducts();
-        } catch (e) { alert("Failed to delete"); }
+        setConfirmAction({
+            message: "Remove this product from marketplace?",
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/marketplace/products/${id}`);
+                    toast.success("Product deleted successfully");
+                    loadProducts();
+                } catch (e) { toast.error("Failed to delete"); }
+                setConfirmAction(null);
+            }
+        });
     };
 
     const filtered = products.filter(p => !category || p.category === category);
@@ -561,10 +711,14 @@ function ProductsTab() {
                             {/* Product Image Area */}
                             <div className="relative h-40 overflow-hidden bg-gray-50/50 p-4 flex items-center justify-center">
                                 {p.imageUrl ? (
-                                    <img src={p.imageUrl} alt={p.name} className="max-h-full object-contain transition-transform duration-500 group-hover:scale-110" />
+                                    <img
+                                        src={p.imageUrl}
+                                        alt={p.name}
+                                        className="max-h-full object-contain transition-transform duration-500 group-hover:scale-110"
+                                    />
                                 ) : (
-                                    <div className="text-6xl flex items-center justify-center">
-                                        {CAT_EMOJI[p.category] || "🐾"}
+                                    <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400 text-xs font-bold uppercase tracking-widest text-center px-4">
+                                        Image not available
                                     </div>
                                 )}
                                 <span className="absolute top-2 left-2 bg-white/90 text-gray-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-100 uppercase">
@@ -578,7 +732,7 @@ function ProductsTab() {
                                 <p className="text-green-600 font-bold text-lg mb-2">₹{p.price}</p>
 
                                 <div className="flex justify-between items-center mb-4 text-[10px] text-gray-400 font-medium">
-                                    <span>Stock: {p.stockQuantity}</span>
+                                    <span>Stock: {p.stock}</span>
                                     {p.brand && <span>{p.brand}</span>}
                                 </div>
 
@@ -616,7 +770,7 @@ function ProductsTab() {
                             </div>
                             <div>
                                 <label className="text-sm font-medium text-gray-700 mb-1 block">Stock Qty *</label>
-                                <input type="number" required min="0" value={form.stockQuantity} onChange={e => setForm({ ...form, stockQuantity: e.target.value })} className={inp} />
+                                <input type="number" required min="0" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} className={inp} />
                             </div>
                         </div>
                         <div>
@@ -626,8 +780,14 @@ function ProductsTab() {
                             </select>
                         </div>
                         <div>
-                            <label className="text-sm font-medium text-gray-700 mb-1 block">Image URL</label>
-                            <input value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} className={inp} placeholder="https://..." />
+                            <label className="text-sm font-medium text-gray-700 mb-1 block">Image URL *</label>
+                            <input
+                                type="text"
+                                placeholder="Paste product image URL"
+                                value={form.imageUrl}
+                                onChange={e => setForm({ ...form, imageUrl: e.target.value })}
+                                className={inp}
+                            />
                         </div>
                         <div className="flex gap-3 pt-2">
                             <button type="button" onClick={() => setShowModal(false)}
@@ -662,11 +822,13 @@ function AdminOrdersTab() {
 
     const updateStatus = async (orderId, newStatus) => {
         try {
-            await api.put(`/admin/orders/${orderId}/status?status=${newStatus}`);
-            alert(`✅ Order ${orderId} updated to ${newStatus}`);
+            await api.put(`/marketplace/orders/${orderId}/status`, null, {
+                params: { status: newStatus }
+            });
+            toast.success("Order status updated successfully");
             loadOrders();
         } catch (e) {
-            alert(e.response?.data?.message || "Failed to update status");
+            toast.error(e.response?.data?.message || "Operation failed");
         }
     };
 
@@ -696,14 +858,13 @@ function AdminOrdersTab() {
                                     <td className="p-4 text-sm font-medium">{order.ownerEmail || "User"}</td>
                                     <td className="p-4 text-sm">₹{order.totalAmount}</td>
                                     <td className="p-4">
-                                        <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${
-                                            order.status === 'DELIVERED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                        }`}>
+                                        <span className={`text-[10px] px-2 py-1 rounded-full font-bold ${order.status === 'DELIVERED' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                            }`}>
                                             {order.status}
                                         </span>
                                     </td>
                                     <td className="p-4 flex gap-2">
-                                        <select 
+                                        <select
                                             className="text-xs border rounded p-1 outline-none"
                                             value={order.status}
                                             onChange={(e) => updateStatus(order.id, e.target.value)}
@@ -758,8 +919,10 @@ function Field({ label, children }) {
 }
 
 // ─── Main AdminDashboard ───────────────────────────────────────────────────
+
 export default function AdminDashboard() {
     const [activeTab, setActiveTab] = useState("pending");
+    const [confirmAction, setConfirmAction] = useState(null);
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -769,16 +932,15 @@ export default function AdminDashboard() {
     };
 
     const tabContent = {
-        pending: <PendingTab />,
-        pet_stats: <PetStatisticsTab />,
-        all_pets: <AllPetsTab />,
-        vaccination: <VaccinationTab />,
-        medical_records: <MedicalMonitoringTab />,
+        pending: <PendingTab setConfirmAction={setConfirmAction} />,
         users: <UsersTab />,
         create: <CreateOwnerTab />,
-        slots: <SlotsTab />,
-        products: <ProductsTab />,
+        slots: <SlotsTab setConfirmAction={setConfirmAction} />,
+        products: <ProductsTab setConfirmAction={setConfirmAction} />,
         orders: <AdminOrdersTab />,
+        pet_stats: <PetStatisticsTab />,
+        all_pets: <AllPetsTab />,
+        vaccination_monitor: <VaccinationTab setConfirmAction={setConfirmAction} />,
     };
 
     return (
@@ -826,23 +988,32 @@ export default function AdminDashboard() {
             </aside>
 
             {/* Main Content */}
-            <main className="ml-64 flex-1 p-8 min-h-screen">
-                {/* Top bar */}
-                <div className="mb-8 flex items-center justify-between">
-                    <div>
-                        <h2 className="text-2xl font-bold text-gray-800">
-                            {TABS.find(t => t.id === activeTab)?.label}
-                        </h2>
-                        <p className="text-gray-500 text-sm mt-1">Pet Wellness Platform</p>
+            <main className="ml-64 flex-1 p-8 bg-gray-50/50 min-h-screen">
+                <ConfirmDialog
+                    message={confirmAction?.message}
+                    onConfirm={confirmAction?.onConfirm}
+                    onCancel={() => setConfirmAction(null)}
+                />
+                <div className="max-w-7xl mx-auto animate-fadeIn">
+                    <div className="mb-8 flex justify-between items-center bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                        <div>
+                            <h2 className="text-3xl font-black text-gray-800 tracking-tight">
+                                {TABS.find(t => t.id === activeTab)?.label}
+                            </h2>
+                            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-1">Administrator Portal</p>
+                        </div>
+                        <div className="flex items-center gap-4 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-100">
+                            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-xl">🛡️</div>
+                            <div>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase">System Status</p>
+                                <p className="text-xs font-black text-green-600">Secure & Online</p>
+                            </div>
+                        </div>
                     </div>
-                    <div className="bg-white rounded-xl px-4 py-2 shadow-sm border text-sm text-gray-600">
-                        👋 Hello, <span className="font-semibold text-orange-600">Admin</span>
-                    </div>
-                </div>
 
-                {/* Content Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 min-h-[500px]">
-                    {tabContent[activeTab]}
+                    <div className="bg-white rounded-3xl p-8 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.05)] border border-gray-100 min-h-[600px]">
+                        {tabContent[activeTab]}
+                    </div>
                 </div>
             </main>
         </div>
@@ -1039,7 +1210,7 @@ function AllPetsTab() {
 }
 
 // --- Tab: Vaccination Monitoring ------------------------------------
-function VaccinationTab() {
+function VaccinationTab({ setConfirmAction }) {
     const [vaccinations, setVaccinations] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
@@ -1052,26 +1223,28 @@ function VaccinationTab() {
     const inp = "w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-orange-400 outline-none";
 
     const handleDelete = async (vaxId) => {
-        if (!window.confirm("Are you sure you want to delete this vaccination record?")) return;
-        try {
-            await api.delete(`/admin/vaccinations/${vaxId}`);
-            alert("✅ Vaccination record deleted by admin!");
-            setVaccinations(prev => prev.filter(v => v.id !== vaxId));
-        } catch (e) {
-            alert(e.response?.data?.message || "Failed to delete");
-        }
+        setConfirmAction({
+            message: "Are you sure you want to delete this vaccination record?",
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/admin/vaccinations/${vaxId}`);
+                    toast.success("Vaccination record deleted successfully");
+                    setVaccinations(prev => prev.filter(v => v.id !== vaxId));
+                } catch (e) {
+                    toast.error(e.response?.data?.message || "Operation failed");
+                }
+                setConfirmAction(null);
+            }
+        });
     };
 
     const toggleStatus = async (vax) => {
         try {
-            // Assuming there's an endpoint to toggle or we just use a generic update
-            // For now, let's just use the existing admin delete pattern or if there's an update...
-            // If no update endpoint, we might need a workaround, but let's assume we can mark as completed
             await api.put(`/admin/vaccinations/${vax.id}/toggle-complete`);
-            alert(`✅ Status updated!`);
+            toast.success(`Status updated!`);
             loadVaccinations();
         } catch (e) {
-            alert("Failed to update status. Endpoint might not exist yet.");
+            toast.error("Failed to update status. Operation failed.");
         }
     };
 
@@ -1100,15 +1273,16 @@ function VaccinationTab() {
 
     const handleAddVax = async (e) => {
         e.preventDefault();
+        if (!form.petId) { toast.error("Please select a pet"); return; }
         setSaving(true);
         try {
             await api.post(`/admin/vaccinations/pets/${form.petId}`, form);
-            alert("✅ Vaccination record added successfully!");
+            toast.success("Vaccination record added successfully!");
             setShowAddModal(false);
             setForm({ petId: "", vaccineName: "", dateGiven: "", nextDueDate: "", batchNumber: "", administeredBy: "" });
             loadVaccinations();
         } catch (e) {
-            alert(e.response?.data?.message || "Failed to add vaccination record");
+            toast.error(e.response?.data?.message || "Failed to add vaccination record");
         } finally {
             setSaving(false);
         }

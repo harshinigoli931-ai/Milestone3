@@ -40,22 +40,25 @@ public class OwnerService {
                 .accountStatus(user.getAccountStatus().name())
                 .emailVerified(user.isEmailVerified())
                 .profileCompletion(user.getProfileCompletion());
-
         personalInfoRepo.findByUserId(userId).ifPresent(info -> {
             builder.firstName(info.getFirstName())
                     .lastName(info.getLastName())
                     .phone(info.getPhone())
                     .dateOfBirth(info.getDateOfBirth())
-                    .gender(info.getGender());
+                    .gender(info.getGender())
+                    .numberOfPets(info.getNumberOfPets())
+                    .petTypes(info.getPetTypes())
+                    .education(info.getEducation());
         });
 
-        addressRepo.findByUserId(userId).ifPresent(addr -> {
+        var addresses = addressRepo.findByUserId(userId);
+        if (!addresses.isEmpty()) {
+            Address addr = addresses.get(0);
             builder.street(addr.getStreet())
                     .city(addr.getCity())
                     .state(addr.getState())
-                    .zipCode(addr.getZipCode())
-                    .country(addr.getCountry());
-        });
+                    .zipCode(addr.getPostalCode());
+        }
 
         workExpRepo.findByUserId(userId).ifPresent(work -> {
             builder.companyName(work.getCompanyName())
@@ -85,11 +88,17 @@ public class OwnerService {
             info.setDateOfBirth(request.getDateOfBirth());
         if (request.getGender() != null)
             info.setGender(request.getGender());
+        if (request.getNumberOfPets() != null)
+            info.setNumberOfPets(request.getNumberOfPets());
+        if (request.getPetTypes() != null)
+            info.setPetTypes(request.getPetTypes());
+        if (request.getEducation() != null)
+            info.setEducation(request.getEducation());
         personalInfoRepo.save(info);
 
         // Update address
-        Address address = addressRepo.findByUserId(userId)
-                .orElse(Address.builder().user(user).build());
+        var addresses = addressRepo.findByUserId(userId);
+        Address address = !addresses.isEmpty() ? addresses.get(0) : Address.builder().user(user).build();
         if (request.getStreet() != null)
             address.setStreet(request.getStreet());
         if (request.getCity() != null)
@@ -97,9 +106,7 @@ public class OwnerService {
         if (request.getState() != null)
             address.setState(request.getState());
         if (request.getZipCode() != null)
-            address.setZipCode(request.getZipCode());
-        if (request.getCountry() != null)
-            address.setCountry(request.getCountry());
+            address.setPostalCode(request.getZipCode());
         addressRepo.save(address);
 
         // Update work experience
