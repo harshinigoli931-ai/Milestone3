@@ -120,6 +120,10 @@ public class AppointmentService {
         if (slot.getCurrentBookings() > 0) {
             throw new BadRequestException("Cannot delete slot with existing bookings");
         }
+        // Delete all associated appointments (including cancelled ones) to avoid Foreign Key constraints
+        List<Appointment> apps = appointmentRepository.findBySlotId(slotId);
+        appointmentRepository.deleteAll(apps);
+        
         slotRepository.delete(slot);
     }
 

@@ -129,7 +129,7 @@ function PendingTab({ setConfirmAction }) {
 
     const approve = async (id) => {
         try {
-            await api.put(`/admin/owners/${id}/approve`);
+            await api.post(`/admin/owners/${id}/approve`);
             toast.success("User approved! Credentials sent by email.");
             loadPending();
         } catch (e) { toast.error(e.response?.data?.message || "Operation failed"); }
@@ -140,7 +140,7 @@ function PendingTab({ setConfirmAction }) {
             message: "Reject this registration?",
             onConfirm: async () => {
                 try {
-                    await api.delete(`/admin/owners/${id}/reject`);
+                    await api.post(`/admin/owners/${id}/reject`);
                     toast.success("Registration rejected");
                     loadPending();
                 } catch (e) { toast.error(e.response?.data?.message || "Operation failed"); }
@@ -420,7 +420,7 @@ function SlotsTab({ setConfirmAction }) {
             toast.success("Slot availability updated");
             loadSlots();
         } catch (e) {
-            toast.error("Failed to toggle slot");
+            toast.error(e.response?.data?.message || "Failed to toggle slot");
         }
     };
 
@@ -928,7 +928,7 @@ export default function AdminDashboard() {
     const handleLogout = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("role");
-        navigate("/login");
+        navigate("/login", { replace: true });
     };
 
     const tabContent = {

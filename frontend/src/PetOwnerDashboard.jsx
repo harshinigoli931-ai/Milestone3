@@ -126,6 +126,10 @@ function PetsTab({ onSelectPet, setConfirmAction }) {
     useEffect(() => { loadPets(); }, []);
 
     const openAdd = () => {
+        if (pets.length >= 5) {
+            toast.warning("🔒 Maximum limit of 5 pets reached per account!");
+            return;
+        }
         setEditing(null);
         setPetForm({ name: "", species: "DOG", breed: "", age: "", gender: "MALE", weight: "", color: "", microchipId: "", imageUrl: "" });
         setShowModal(true);
@@ -139,6 +143,10 @@ function PetsTab({ onSelectPet, setConfirmAction }) {
 
     const handleSave = async e => {
         e.preventDefault();
+        if (!editing && pets.length >= 5) {
+            toast.error("Maximum limit of 5 pets reached!");
+            return;
+        }
         const payload = { ...petForm, age: parseInt(petForm.age), weight: petForm.weight ? parseFloat(petForm.weight) : null };
         try {
             if (editing) {
@@ -689,7 +697,8 @@ function BookAppointmentTab() {
             api.get("/appointments/slots"),
             api.get("/pets")
         ]).then(([slotsRes, petsRes]) => {
-            const fetchedSlots = slotsRes.data.data || [];
+            const today = new Date().toISOString().split('T')[0];
+            const fetchedSlots = (slotsRes.data.data || []).filter(s => s.date >= today);
             fetchedSlots.sort((a, b) => new Date(`${a.date}T${a.startTime}`) - new Date(`${b.date}T${b.startTime}`));
             setSlots(fetchedSlots);
             setPets(petsRes.data.data || []);
@@ -836,6 +845,9 @@ function ProfileTab() {
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [pwdForm, setPwdForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    const [changingPwd, setChangingPwd] = useState(false);
 
     const regex = {
         name: /^[A-Za-z ]{2,50}$/,
@@ -978,6 +990,32 @@ function ProfileTab() {
         }
     };
 
+    const handleChangePassword = async (e) => {
+        e.preventDefault();
+        if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+            toast.error("Passwords do not match!");
+            return;
+        }
+        if (pwdForm.newPassword.length < 6) {
+            toast.error("Password must be at least 6 characters long");
+            return;
+        }
+        setChangingPwd(true);
+        try {
+            await api.post("/owner/change-password", {
+                currentPassword: pwdForm.currentPassword,
+                newPassword: pwdForm.newPassword
+            });
+            toast.success("🔑 Password changed successfully!");
+            setShowPasswordModal(false);
+            setPwdForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        } catch (e) {
+            toast.error(e.response?.data?.message || "Failed to change password");
+        } finally {
+            setChangingPwd(false);
+        }
+    };
+
     const inp = "w-full border border-gray-200 rounded-xl p-3.5 text-sm focus:ring-2 focus:ring-orange-400 outline-none transition-all placeholder:text-gray-300";
     const label = "text-xs font-black text-gray-400 uppercase tracking-widest mb-2 block";
 
@@ -1096,6 +1134,44 @@ function ProfileTab() {
                     </button>
                 </div>
             </form>
+
+            <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm mt-8">
+                <h4 className="text-lg font-black text-gray-800 mb-6 flex items-center gap-3">
+                    <span className="bg-red-50 p-2 rounded-xl text-lg">🔒</span> Account Security
+                </h4>
+                <div>
+                    <button
+                        type="button"
+                        onClick={() => setShowPasswordModal(true)}
+                        className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-bold text-sm transition shadow-lg shadow-red-100"
+                    >
+                        Change Password
+                    </button>
+                </div>
+            </div>
+
+            {showPasswordModal && (
+                <Modal title="Change Password" onClose={() => setShowPasswordModal(false)}>
+                    <form onSubmit={handleChangePassword} className="space-y-4">
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 mb-1 block">Current Password</label>
+                            <input type="password" required value={pwdForm.currentPassword} onChange={e => setPwdForm({ ...pwdForm, currentPassword: e.target.value })} className={inp} />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 mb-1 block">New Password</label>
+                            <input type="password" required value={pwdForm.newPassword} onChange={e => setPwdForm({ ...pwdForm, newPassword: e.target.value })} className={inp} />
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-gray-700 mb-1 block">Confirm New Password</label>
+                            <input type="password" required value={pwdForm.confirmPassword} onChange={e => setPwdForm({ ...pwdForm, confirmPassword: e.target.value })} className={inp} />
+                        </div>
+                        <button type="submit" disabled={changingPwd} className="w-full bg-orange-500 text-white py-3 rounded-xl font-bold mt-4 shadow-lg shadow-orange-200">
+                            {changingPwd ? "Changing..." : "Update Password"}
+                        </button>
+                    </form>
+                </Modal>
+            )}
+
         </div>
     );
 }
@@ -1125,7 +1201,7 @@ export default function PetOwnerDashboard() {
 
     const handleLogout = () => {
         localStorage.clear();
-        navigate("/login");
+        navigate("/login", { replace: true });
     };
 
     const handleSelectPet = (pet) => {

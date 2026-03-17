@@ -47,7 +47,9 @@ export default function ReviewOrder({ items, address, paymentMethod, total, onPl
                         <div className="flex items-center gap-2">
                             <span className="text-lg">{paymentMethod === "COD" ? "💵" : "💳"}</span>
                             <p className="text-sm font-bold text-gray-800">
-                                {paymentMethod === "COD" ? "Cash on Delivery" : "UPI / Razorpay Online"}
+                                {paymentMethod === "COD" ? "Cash on Delivery" :
+                                    paymentMethod.startsWith("ONLINE_") ? `Online Payment - ${paymentMethod.split("_")[1] === "CARD" ? "Card" : paymentMethod.split("_")[1]}` :
+                                        "Online Payment"}
                             </p>
                         </div>
                         <p className="text-[10px] text-gray-400 font-bold mt-4 uppercase">Expected Delivery</p>

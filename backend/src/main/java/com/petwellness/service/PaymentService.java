@@ -136,7 +136,7 @@ public class PaymentService {
         for (Map<String, Object> itemMap : itemsData) {
             OrderRequest.OrderItemRequest item = new OrderRequest.OrderItemRequest();
             item.setProductId(Long.valueOf(itemMap.get("productId").toString()));
-            item.setQuantity((Integer) itemMap.get("quantity"));
+            item.setQuantity(Integer.valueOf(itemMap.get("quantity").toString()));
             items.add(item);
         }
         

@@ -46,6 +46,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**")
                         .permitAll()
+                        .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/marketplace/products/**").permitAll()
                         .requestMatchers("/api/users/addresses/**").authenticated()
                         // Admin-only endpoints

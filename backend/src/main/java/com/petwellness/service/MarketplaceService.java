@@ -23,15 +23,18 @@ public class MarketplaceService {
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
+    private final EmailService emailService;
 
     public MarketplaceService(ProductRepository productRepository,
             OrderRepository orderRepository,
             UserRepository userRepository,
-            AddressRepository addressRepository) {
+            AddressRepository addressRepository,
+            EmailService emailService) {
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
         this.addressRepository = addressRepository;
+        this.emailService = emailService;
     }
 
     // ========== Admin: Product Management ==========
@@ -190,6 +193,9 @@ public class MarketplaceService {
         }
         order.setItems(orderItems);
         order = orderRepository.save(order);
+
+        // Send order confirmation email
+        emailService.sendOrderConfirmationEmail(order);
 
         return mapToResponse(order);
     }

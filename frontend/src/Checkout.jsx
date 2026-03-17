@@ -159,7 +159,7 @@ export default function Checkout() {
                 order_id: razorpayOrderId,
                 handler: async function (response) {
                     try {
-                        const verifyRes = await api.post("/payment/verify", {
+                        const verifyRes = await api.post("/payments/verify", {
                             razorpay_order_id: response.razorpay_order_id,
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature,
