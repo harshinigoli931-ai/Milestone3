@@ -103,7 +103,7 @@ public class MarketplaceService {
     }
 
     public List<OrderResponse> getAllOrders() {
-        return orderRepository.findAll().stream()
+        return orderRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(this::mapToResponse).collect(Collectors.toList());
     }
 
@@ -113,6 +113,49 @@ public class MarketplaceService {
                 .orElseThrow(() -> new RuntimeException("Order not found"));
         order.setStatus(OrderStatus.valueOf(status));
         order = orderRepository.save(order);
+
+        // Send Order Status Update Email (Asynchronous to prevent lag)
+        try {
+            final String targetEmail = order.getOwner().getEmail();
+            final String updatedStatus = status;
+            final Long orderNum = order.getId();
+
+            // Prepare non-lazy variables for inside the thread
+            String itemsTitle = "Product";
+            String firstItemImage = null;
+            if (order.getItems() != null && !order.getItems().isEmpty()) {
+                OrderItem first = order.getItems().get(0);
+                itemsTitle = first.getProduct().getName();
+                firstItemImage = first.getProduct().getImageUrl();
+                if (order.getItems().size() > 1) {
+                    itemsTitle += " (+ " + (order.getItems().size() - 1) + " more)";
+                }
+            }
+            
+            String expectedDate = null;
+            if (order.getExpectedDeliveryDate() != null) {
+                expectedDate = order.getExpectedDeliveryDate().toLocalDate().format(
+                    java.time.format.DateTimeFormatter.ofPattern("EEE, MMM dd")
+                );
+            }
+
+            final String fTitle = itemsTitle;
+            final String fImage = firstItemImage;
+            final String fDate = expectedDate;
+
+            new Thread(() -> {
+                try {
+                    // Small sleep for transaction commit safety
+                    Thread.sleep(1000); 
+                    emailService.sendOrderStatusUpdateEmail(targetEmail, orderNum, updatedStatus, fTitle, fImage, fDate);
+                } catch (Exception ex) {
+                    System.err.println("Async order update email failed: " + ex.getMessage());
+                }
+            }).start();
+        } catch (Exception e) {
+            System.err.println("Failed to initiate order update email: " + e.getMessage());
+        }
+
         return mapToResponse(order);
     }
 

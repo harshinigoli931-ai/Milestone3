@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function ReviewOrder({ items, address, paymentMethod, total, onPlaceOrder, loading }) {
+export default function ReviewOrder({ items, address, paymentMethod, total, onPlaceOrder, loading, buttonText }) {
     const expectedDate = new Date();
     expectedDate.setDate(expectedDate.getDate() + 5);
 
@@ -41,22 +41,24 @@ export default function ReviewOrder({ items, address, paymentMethod, total, onPl
                         </div>
                     </div>
 
-                    {/* Payment Review */}
-                    <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Payment Method</p>
-                        <div className="flex items-center gap-2">
-                            <span className="text-lg">{paymentMethod === "COD" ? "💵" : "💳"}</span>
-                            <p className="text-sm font-bold text-gray-800">
-                                {paymentMethod === "COD" ? "Cash on Delivery" :
-                                    paymentMethod.startsWith("ONLINE_") ? `Online Payment - ${paymentMethod.split("_")[1] === "CARD" ? "Card" : paymentMethod.split("_")[1]}` :
-                                        "Online Payment"}
+                    {/* Payment Review (Conditional) */}
+                    {paymentMethod && (
+                        <div>
+                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Payment Method</p>
+                            <div className="flex items-center gap-2">
+                                <span className="text-lg">{paymentMethod === "COD" ? "💵" : "💳"}</span>
+                                <p className="text-sm font-bold text-gray-800">
+                                    {paymentMethod === "COD" ? "Cash on Delivery" :
+                                        paymentMethod.startsWith("ONLINE_") ? `Online Payment - ${paymentMethod.split("_")[1] === "CARD" ? "Card" : paymentMethod.split("_")[1]}` :
+                                            "Online Payment"}
+                                </p>
+                            </div>
+                            <p className="text-[10px] text-gray-400 font-bold mt-4 uppercase">Expected Delivery</p>
+                            <p className="text-sm font-bold text-orange-600">
+                                {expectedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
                             </p>
                         </div>
-                        <p className="text-[10px] text-gray-400 font-bold mt-4 uppercase">Expected Delivery</p>
-                        <p className="text-sm font-bold text-orange-600">
-                            {expectedDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })}
-                        </p>
-                    </div>
+                    )}
                 </div>
 
                 <button
@@ -64,7 +66,7 @@ export default function ReviewOrder({ items, address, paymentMethod, total, onPl
                     disabled={loading}
                     className="w-full mt-8 py-5 bg-orange-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-orange-500 transition shadow-xl shadow-orange-600/20 active:scale-95 disabled:bg-gray-400 disabled:shadow-none"
                 >
-                    {loading ? "Placing Order..." : "Place Order"}
+                    {loading ? "Processing..." : buttonText || "Place Order"}
                 </button>
             </div>
         </div>

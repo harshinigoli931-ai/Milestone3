@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import api from "./api";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import HealthReports from "./HealthReports";
 import Marketplace from "./Marketplace";
 import OrderHistory from "./OrderHistory";
@@ -36,14 +36,14 @@ const icons = {
 
 const TABS = [
     { id: "pets", label: "Dashboard", icon: icons.paw },
-    { id: "health", label: "Health & Tracking", icon: icons.heart },
+    { id: "health", label: "Health & Tracking", icon: "❤️" },
     { id: "vaccinations", label: "Vaccinations", icon: "💉" },
     { id: "reports", label: "Health Reports", icon: "📋" },
-    { id: "book", label: "Book Vet Appointment", icon: icons.calendar },
-    { id: "myappts", label: "My Appointments", icon: "🗓️" },
-    { id: "shop", label: "Marketplace", icon: icons.shop },
+    { id: "book", label: "Book Appointments", icon: "🗓️" },
+    { id: "myappts", label: "My Appointments", icon: "🩺" },
+    { id: "shop", label: "Marketplace", icon: "🛍️" },
     { id: "cart", label: "My Cart", icon: "🛒" },
-    { id: "orders", label: "Order History", icon: icons.orders },
+    { id: "orders", label: "Order History", icon: "📦" },
     { id: "profile", label: "My Profile", icon: "👤" },
 ];
 
@@ -151,10 +151,10 @@ function PetsTab({ onSelectPet, setConfirmAction }) {
         try {
             if (editing) {
                 await api.put(`/pets/${editing.id}`, payload);
-                toast.success("✅ Pet updated!");
+                toast.success("Pet updated!");
             } else {
                 await api.post("/pets", payload);
-                toast.success("✅ Pet added!");
+                toast.success("Pet added!");
             }
             setShowModal(false);
             loadPets();
@@ -800,12 +800,15 @@ function MyAppointmentsTab() {
 
     if (loading) return <Loader />;
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    const filteredAppts = appointments.filter(a => a.date >= todayStr);
+
     return (
         <div>
             <h2 className="text-xl font-bold text-gray-800 mb-6">Active Appointments</h2>
-            {appointments.length === 0 ? <EmptyState icon="🗓️" message="No bookings found." /> : (
+            {filteredAppts.length === 0 ? <EmptyState icon="🗓️" message="No bookings found." /> : (
                 <div className="space-y-4">
-                    {appointments.map(a => (
+                    {filteredAppts.map(a => (
                         <div key={a.id} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex justify-between items-center group hover:border-orange-200 transition">
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
@@ -1183,6 +1186,13 @@ export default function PetOwnerDashboard() {
     const [confirmAction, setConfirmAction] = useState(null);
     const [cartCount, setCartCount] = useState(0);
     const navigate = useNavigate();
+    const location = useLocation();
+
+    useEffect(() => {
+        if (location.state?.activeTab) {
+            setActiveTab(location.state.activeTab);
+        }
+    }, [location.state]);
 
     const updateCartCount = () => {
         const cart = JSON.parse(localStorage.getItem("cart") || "[]");

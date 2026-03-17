@@ -130,3 +130,17 @@ textarea:focus {
         transform: rotate(360deg);
     }
 }
+
+/* Hide Razorpay Test Mode Ribbon */
+div[style*="z-index"][style*="background-color: rgb(213, 48, 48)"],
+div[style*="z-index"][style*="background-color: rgb(222, 53, 69)"],
+div[style*="z-index"][style*="background-color: #d33030"],
+div[style*="z-index"][style*="background-color: #de3545"],
+div[style*="z-index"][style*="right: 0px"][style*="top: 0px"],
+.razorpay-test-mode-ribbon,
+.razorpay-test-mode {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}

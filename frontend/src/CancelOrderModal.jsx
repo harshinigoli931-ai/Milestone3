@@ -65,15 +65,15 @@ export default function CancelOrderModal({ order, onClose, onSuccess }) {
 
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 mb-2">Select Reason</label>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Why are you cancelling?</label>
                             <select
                                 value={reason}
                                 onChange={(e) => setReason(e.target.value)}
-                                className="w-full border border-gray-300 rounded-xl p-3 text-sm focus:ring-2 focus:ring-orange-400 outline-none"
+                                className="w-full border-2 border-orange-100 rounded-xl p-3.5 text-sm font-bold text-gray-700 bg-orange-50/20 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition cursor-pointer"
                             >
                                 <option value="">Choose a reason...</option>
                                 {reasons.map(r => (
-                                    <option key={r} value={r}>{r}</option>
+                                    <option key={r} value={r} className="font-normal">{r}</option>
                                 ))}
                             </select>
                         </div>

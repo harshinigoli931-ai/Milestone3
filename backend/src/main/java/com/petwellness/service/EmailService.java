@@ -175,4 +175,61 @@ public class EmailService {
             e.printStackTrace(); // Added to debug failures
         }
     }
+
+    public void sendOrderStatusUpdateEmail(String to, Long orderId, String status, String itemsTitle, String firstItemImage, String expectedDate) {
+        try {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            helper.setFrom(fromEmail);
+            helper.setTo(to);
+            helper.setSubject("Your PetWellness order status updated - #" + orderId);
+
+            String htmlTemplate = 
+                "<!DOCTYPE html>" +
+                "<html><head>" +
+                "    <style>" +
+                "        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #eaeded; margin: 0; padding: 20px; }" +
+                "        .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }" +
+                "        .content { padding: 30px; }" +
+                "        .title { font-size: 20px; font-weight: bold; color: #111; margin-bottom: 20px; }" +
+                "        .item-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background-color: #f9f9f9; display: flex; align-items: center; margin-bottom: 20px; }" +
+                "        .item-img { width: 80px; height: 80px; object-fit: contain; border: 1px solid #eee; border-radius: 4px; background: white; padding: 5px; }" +
+                "        .item-info { margin-left: 15px; flex-grow: 1; }" +
+                "        .status-header { font-size: 16px; font-weight: bold; color: #007600; margin-top: 15px; }" + 
+                "        .status-date { font-size: 22px; font-weight: 800; color: #111; margin: 5px 0; }" +
+                "        .button { display: inline-block; background-color: #ffd814; color: #111; font-weight: bold; padding: 10px 24px; border-radius: 20px; text-decoration: none; border: 1px solid #fcd200; box-shadow: 0 2px 5px rgba(213,217,217,0.5); font-size: 13px; margin-right: 10px; }" +
+                "        .button-secondary { background-color: #ffffff; border: 1px solid #d5d9d9; box-shadow: 0 2px 5px rgba(213,217,217,0.5); } " +
+                "    </style>" +
+                "</head><body>" +
+                "    <div class='container'>" +
+                "        <div class='content'>" +
+                "            <div class='title'>Your PetWellness order status is now: <span style='color: #c45500;'>" + status + "</span></div>" +
+                "            <div style='display: table; width: 100%; border: 1px solid #ddd; border-radius: 8px; padding: 15px; background-color: #f9f9f9; margin-bottom: 20px;'>" +
+                "                <div style='display: table-cell; width: 80px; vertical-align: middle;'>" +
+                "                    <img src='" + (firstItemImage != null && !firstItemImage.isEmpty() ? firstItemImage : "https://via.placeholder.com/100") + "' style='width: 80px; height: 80px; object-fit: contain; border: 1px solid #eee; border-radius: 4px; background: white; padding: 5px;' />" +
+                "                </div>" +
+                "                <div style='display: table-cell; padding-left: 15px; vertical-align: middle;'>" +
+                "                    <p style='margin: 0; font-weight: bold; font-size: 15px;'>" + itemsTitle + "</p>" +
+                "                    <p style='margin: 4px 0; font-size: 12px; color: #565959;'>Order number: #" + orderId + "</p>" +
+                "                </div>" +
+                "            </div>" +
+                "            <div class='status-header'>🚚 Status update from PetWellness:</div>" +
+                "            <p style='font-size: 14px; color: #565959; margin: 4px 0;'>Your Order is <strong>" + status + "</strong></p>" +
+                "            <div class='status-date'>" + (expectedDate != null ? "Expected by " + expectedDate : "In Progress") + "</div>" +
+                "            <div style='margin-top: 25px;'>" +
+                "                <a href='http://localhost:5173/dashboard' class='button'>Track package</a>" +
+                "                <a href='http://localhost:5173/dashboard' class='button button-secondary'>View item</a>" +
+                "            </div>" +
+                "        </div>" +
+                "    </div>" +
+                "</body></html>";
+
+            helper.setText(htmlTemplate, true);
+            mailSender.send(message);
+            log.info("Order status update email sent to: {}", to);
+        } catch (Exception e) {
+            log.warn("Failed to send order status update email. Error: {}", e.getMessage());
+        }
+    }
 }

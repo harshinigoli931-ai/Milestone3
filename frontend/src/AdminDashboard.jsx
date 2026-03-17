@@ -808,12 +808,14 @@ function ProductsTab({ setConfirmAction }) {
 function AdminOrdersTab() {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [selectedOrder, setSelectedOrder] = useState(null);
 
     const loadOrders = async () => {
         try {
             setLoading(true);
             const res = await api.get("/admin/orders");
-            setOrders(res.data.data || []);
+            const sorted = (res.data.data || []).sort((a, b) => b.id - a.id);
+            setOrders(sorted);
         } catch (e) { console.error(e); }
         finally { setLoading(false); }
     };
@@ -827,10 +829,105 @@ function AdminOrdersTab() {
             });
             toast.success("Order status updated successfully");
             loadOrders();
+            if (selectedOrder) setSelectedOrder(prev => ({ ...prev, status: newStatus })); // Fix crasher
         } catch (e) {
             toast.error(e.response?.data?.message || "Operation failed");
         }
     };
+
+    if (loading) return <Loader />;
+
+    if (selectedOrder) {
+        return (
+            <div className="animate-fadeIn">
+                <button
+                    onClick={() => setSelectedOrder(null)}
+                    className="text-sm font-medium text-orange-600 hover:text-orange-700 mb-6 flex items-center gap-1 bg-orange-50 px-3 py-1.5 rounded-xl border border-orange-100 shadow-sm"
+                >
+                    ← Back to Orders
+                </button>
+
+                <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
+                    <div>
+                        <h2 className="text-2xl font-black text-gray-800">Order #{selectedOrder.id.toString(16).padStart(8, '0')}</h2>
+                        <p className="text-gray-400 text-xs font-bold">Placed on {selectedOrder.createdAt ? new Date(selectedOrder.createdAt).toLocaleString() : 'N/A'}</p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 bg-gray-50 px-4 py-2 rounded-2xl border border-gray-100">
+                        <span className="text-xs font-bold text-gray-500 mr-2">Update Status:</span>
+                        {["PENDING", "CONFIRMED", "SHIPPED", "DELIVERED", "CANCELLED"].map(s => (
+                            <button
+                                key={s}
+                                onClick={async () => {
+                                    await updateStatus(selectedOrder.id, s);
+                                    setSelectedOrder({ ...selectedOrder, status: s });
+                                }}
+                                className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all ${selectedOrder.status === s
+                                    ? "bg-orange-500 text-white shadow-sm"
+                                    : "bg-white text-gray-400 border border-gray-100 hover:border-orange-300 hover:text-orange-500"
+                                    }`}
+                            >
+                                {s}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="md:col-span-2 bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                        <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 border-b pb-3">📦 Order Items</h3>
+                        <div className="space-y-4">
+                            {selectedOrder.items?.map(item => (
+                                <div key={item.id} className="flex items-center justify-between border-b last:border-0 pb-4 last:pb-0">
+                                    <div className="flex items-center gap-3">
+                                        {item.productImageUrl ? (
+                                            <img src={item.productImageUrl} alt={item.productName} className="w-14 h-14 rounded-xl object-cover border shadow-sm" />
+                                        ) : (
+                                            <div className="w-14 h-14 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 text-xs border">IMG</div>
+                                        )}
+                                        <div>
+                                            <p className="font-bold text-gray-800 text-sm">{item.productName}</p>
+                                            <p className="text-[10px] text-gray-400">Product ID: {item.id}</p>
+                                            <p className="text-xs text-gray-500 mt-0.5">{item.quantity} x ₹{item.unitPrice}</p>
+                                        </div>
+                                    </div>
+                                    <p className="font-bold text-gray-800">₹{item.totalPrice}</p>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="border-t pt-4 mt-6 flex justify-between items-center">
+                            <span className="font-bold text-gray-500">Total Amount</span>
+                            <span className="font-black text-xl text-orange-600">₹{selectedOrder.totalAmount}</span>
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                            <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 border-b pb-3">👤 Customer Details</h3>
+                            <p className="text-xs font-black text-gray-400 mb-1 uppercase">Customer Email</p>
+                            <p className="font-bold text-gray-800 mb-4 text-sm truncate">{selectedOrder.ownerEmail}</p>
+
+                            <p className="text-xs font-black text-gray-400 mb-1 uppercase">Payment Method</p>
+                            <p className="font-bold text-orange-600 text-sm">{selectedOrder.paymentMethod || 'N/A'}</p>
+                        </div>
+
+                        <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm border-t-4 border-t-orange-500">
+                            <h3 className="font-bold text-gray-700 mb-4 flex items-center gap-2 border-b pb-3">📍 Shipping Information</h3>
+                            <p className="text-xs font-black text-gray-400 mb-1 uppercase">Address</p>
+                            <p className="text-sm font-bold text-gray-800 mb-4 leading-relaxed">
+                                {selectedOrder.deliveryAddress
+                                    ? `${selectedOrder.deliveryAddress.street}, ${selectedOrder.deliveryAddress.city}, ${selectedOrder.deliveryAddress.state}`
+                                    : selectedOrder.shippingAddress || 'N/A'}
+                            </p>
+
+                            <p className="text-xs font-black text-gray-400 mb-1 uppercase">Phone</p>
+                            <p className="text-sm font-bold text-gray-800">{selectedOrder.deliveryAddress?.phone || 'N/A'}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     if (loading) return <Loader />;
 
@@ -864,6 +961,12 @@ function AdminOrdersTab() {
                                         </span>
                                     </td>
                                     <td className="p-4 flex gap-2">
+                                        <button
+                                            onClick={() => setSelectedOrder(order)}
+                                            className="text-xs font-bold text-orange-600 hover:text-orange-700 bg-orange-50 px-2 py-1.5 rounded border border-orange-200 shadow-sm"
+                                        >
+                                            View Details
+                                        </button>
                                         <select
                                             className="text-xs border rounded p-1 outline-none"
                                             value={order.status}

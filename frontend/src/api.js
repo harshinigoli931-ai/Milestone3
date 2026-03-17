@@ -34,11 +34,11 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-
-    console.error("API error 401/403:", error.response.status, error.config.url);
-    // localStorage.removeItem('token');
-    // localStorage.removeItem('role');
-    // window.location.href = '/login';
+    if (error.response) {
+      console.error("API error status:", error.response.status, "@", error.config.url);
+    } else {
+      console.error("API error (Network/No Response):", error.message);
+    }
 
     return Promise.reject(error);
   }

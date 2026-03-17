@@ -61,9 +61,12 @@ export default function Register() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const [submitting, setSubmitting] = useState(false);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
+    setSubmitting(true);
 
     if (step === 1) {
       // Map frontend fields to backend DTO
@@ -95,7 +98,17 @@ export default function Register() {
         }
       } catch (err) {
         console.error(err);
-        toast.error(err.response?.data?.message || "Registration Failed");
+        const errorData = err.response?.data;
+        if (errorData?.data && typeof errorData.data === 'object') {
+          const validationErrors = Object.entries(errorData.data)
+            .map(([field, msg]) => `${field}: ${msg}`)
+            .join(", ");
+          toast.error(validationErrors || "Validation Failed");
+        } else {
+          toast.error(errorData?.message || "Registration Failed");
+        }
+      } finally {
+        setSubmitting(false);
       }
     } else {
       try {
@@ -106,12 +119,14 @@ export default function Register() {
         });
 
         if (response.data.success) {
-          toast.success("Account verified successfully! Please login.");
-          navigate("/login");
+          toast.success("Account verified successfully!");
+          setStep(3);
         }
       } catch (err) {
         console.error(err);
         toast.error(err.response?.data?.message || "Invalid OTP");
+      } finally {
+        setSubmitting(false);
       }
     }
   };
@@ -175,15 +190,39 @@ export default function Register() {
             </Section>
           )}
 
+          {step === 3 && (
+            <div className="text-center space-y-6 py-10">
+              <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-200">
+                <span className="text-4xl">✅</span>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-800">Registration Complete!</h3>
+              <p className="text-gray-600 max-w-md mx-auto text-lg">
+                Your account is verified.
+                <span className="block mt-2 font-bold text-orange-600">Pending Admin Approval</span>
+                You will be able to log in once your profile is approved by the workspace admins.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/")}
+                className="bg-[#F97316] text-white px-10 py-3 rounded-full font-semibold hover:bg-[#EA580C] transition shadow-md"
+              >
+                Go to Home
+              </button>
+            </div>
+          )}
+
           {/* SUBMIT BUTTON */}
-          <div className="text-center pt-4">
-            <button
-              type="submit"
-              className="bg-[#F97316] text-white px-12 py-3 rounded-full font-semibold hover:bg-[#EA580C] transition"
-            >
-              {step === 1 ? "Register" : "Verify OTP"}
-            </button>
-          </div>
+          {step < 3 && (
+            <div className="text-center pt-4">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="bg-[#F97316] text-white px-12 py-3 rounded-full font-semibold hover:bg-[#EA580C] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? "Processing..." : (step === 1 ? "Register" : "Verify OTP")}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>

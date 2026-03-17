@@ -7,7 +7,7 @@ export default function Landing_page() {
       {/* NAVIGATION BAR */}
       <nav className="flex justify-between items-center p-6 shadow-sm bg-[#FFFDF8] sticky top-0 z-50">
         <h1 className="text-2xl font-bold text-[#F97316]">
-          PetConnect
+          🐾 PetWellness
         </h1>
 
         <ul className="flex gap-6 text-gray-700 font-medium items-center">
@@ -68,12 +68,12 @@ export default function Landing_page() {
 
           {/* Heading */}
           <h2 className="text-4xl font-bold text-[#F97316] mb-6">
-            About PetConnect
+            About PetWellness
           </h2>
 
           {/* Description */}
           <p className="text-gray-600 text-lg leading-relaxed max-w-3xl mx-auto">
-            PetConnect is a comprehensive digital platform built to simplify and modernize
+            PetWellness is a comprehensive digital platform built to simplify and modernize
             pet wellness management. We empower pet owners to manage pet profiles,
             monitor vaccination schedules, book verified veterinary appointments,
             and purchase trusted pet essentials — all within one secure ecosystem.
@@ -170,7 +170,7 @@ export default function Landing_page() {
         <div className="max-w-7xl mx-auto px-6 text-center">
 
           <h2 className="text-4xl font-bold text-[#F97316] mb-4">
-            How PetConnect Works
+            How PetWellness Works
           </h2>
 
           <p className="text-gray-600 mb-16">
@@ -260,7 +260,7 @@ export default function Landing_page() {
               </h3>
               <p>📍 Hyderabad, Telangana, India</p>
               <p>📞 +91 98765 43210</p>
-              <p>📧 support@petconnect.com</p>
+              <p>📧 support@petwellness.com</p>
               <p>🕒 Mon – Sat: 9:00 AM – 7:00 PM</p>
             </div>
 
@@ -300,7 +300,7 @@ export default function Landing_page() {
 
           <div>
             <h2 className="text-2xl font-bold text-white mb-4">
-              PawConnect
+              PetWellness
             </h2>
             <p className="text-gray-300">
               A smart platform to manage your pets, track health,
@@ -331,13 +331,13 @@ export default function Landing_page() {
           <div>
             <h3 className="text-lg font-semibold text-white mb-4">Contact</h3>
             <p>📞 +91 98765 xxxxx</p>
-            <p>📧 support@petconnect.com</p>
+            <p>📧 support@petwellness.com</p>
             <p>📍 Hyderabad, India</p>
           </div>
         </div>
 
         <div className="border-t border-gray-600 mt-10 pt-6 text-center text-sm">
-          © {new Date().getFullYear()} PawConnect — All Rights Reserved.
+          © {new Date().getFullYear()} PetWellness — All Rights Reserved.
         </div>
       </footer>
 

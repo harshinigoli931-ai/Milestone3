@@ -104,8 +104,8 @@ export default function OrderHistory() {
                                     <p className="text-[10px] uppercase font-black text-gray-400 tracking-wider">Order ID: #{order.id}</p>
                                 </div>
                                 <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-sm ${order.status === 'DELIVERED' ? 'bg-green-100 text-green-700' :
-                                        order.status === 'CANCELLED' ? 'bg-red-100 text-red-600' :
-                                            'bg-orange-100 text-orange-600'
+                                    order.status === 'CANCELLED' ? 'bg-red-100 text-red-600' :
+                                        'bg-orange-100 text-orange-600'
                                     }`}>
                                     {order.status}
                                 </span>
@@ -124,24 +124,22 @@ export default function OrderHistory() {
                                     <p className="text-[9px] uppercase font-black text-gray-400">Expected Delivery</p>
                                     <p className="text-xs font-bold text-gray-700">{formatDate(order.expectedDeliveryDate)}</p>
                                 </div>
-                                <div className="flex items-end justify-end">
+                                <div className="flex items-end justify-end gap-3 flex-wrap">
                                     <button className="text-[10px] font-black uppercase text-orange-600 hover:tracking-widest transition-all">
                                         View Details →
                                     </button>
+                                    {canCancel(order.status) && (
+                                        <button
+                                            onClick={(e) => openCancel(e, order)}
+                                            className="text-[10px] font-black uppercase text-red-500 hover:text-red-700 hover:tracking-widest transition-all border-l border-gray-100 pl-3"
+                                        >
+                                            Cancel
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>
 
-                        {/* Quick Actions overlay for small status buttons if needed */}
-                        {canCancel(order.status) && (
-                            <button
-                                onClick={(e) => openCancel(e, order)}
-                                className="absolute top-4 right-4 md:static md:self-center bg-gray-50 text-gray-400 p-2 rounded-xl hover:bg-red-50 hover:text-red-500 transition border border-transparent hover:border-red-100 text-xs font-bold"
-                                title="Quick Cancel"
-                            >
-                                ✕
-                            </button>
-                        )}
                     </div>
                 ))}
             </div>

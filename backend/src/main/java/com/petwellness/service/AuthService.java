@@ -167,8 +167,15 @@ public class AuthService {
      */
     @Transactional
     public ApiResponse<String> register(RegistrationRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new BadRequestException("Email already registered");
+        java.util.Optional<User> existingUserOpt = userRepository.findByEmail(request.getEmail());
+        if (existingUserOpt.isPresent()) {
+            User existingUser = existingUserOpt.get();
+            if (existingUser.getAccountStatus() == AccountStatus.REJECTED) {
+                userRepository.delete(existingUser);
+                userRepository.flush();
+            } else {
+                throw new BadRequestException("Email already registered");
+            }
         }
 
         User user = User.builder()

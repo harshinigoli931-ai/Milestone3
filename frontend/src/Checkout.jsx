@@ -124,12 +124,12 @@ export default function Checkout() {
             return;
         }
         setStep(2);
-        setTimeout(() => paymentRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        setTimeout(() => reviewRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     };
 
     const handleContinueToReview = () => {
         setStep(3);
-        setTimeout(() => reviewRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        setTimeout(() => paymentRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
     };
 
     const handlePlaceOrder = async () => {
@@ -158,6 +158,7 @@ export default function Checkout() {
                 description: "Purchase of Pet Products",
                 order_id: razorpayOrderId,
                 handler: async function (response) {
+                    setLoading(true); // Show loader immediately after payment closes
                     try {
                         const verifyRes = await api.post("/payments/verify", {
                             razorpay_order_id: response.razorpay_order_id,
@@ -177,6 +178,8 @@ export default function Checkout() {
                         }
                     } catch (e) {
                         toast.error("Payment verification failed");
+                    } finally {
+                        setLoading(false);
                     }
                 },
                 prefill: {
@@ -322,28 +325,26 @@ export default function Checkout() {
                             </div>
                         </div>
 
-                        {/* 2. Payment Method */}
-                        <div ref={paymentRef} className={`transition-all duration-500 ${step < 2 ? 'opacity-30 pointer-events-none' : step > 2 ? 'opacity-60 grayscale-[0.2]' : ''}`}>
+                        {/* 2. Review Order */}
+                        <div ref={reviewRef} className={`transition-all duration-500 ${step < 2 ? 'opacity-30 pointer-events-none' : step > 2 ? 'opacity-60 grayscale-[0.2]' : ''}`}>
                             {step >= 2 && (
                                 <div className="space-y-6">
-                                    <PaymentSection
-                                        selectedMethod={paymentMethod}
-                                        onSelect={setPaymentMethod}
-                                        onContinue={handleContinueToReview}
+                                    <ReviewOrder
+                                        items={items}
+                                        address={selectedAddr}
+                                        paymentMethod={null}
+                                        total={total}
+                                        onPlaceOrder={handleContinueToReview}
+                                        loading={loading}
+                                        buttonText="Proceed to Payment →"
                                     />
                                     {step === 2 && (
-                                        <div className="flex justify-between items-center px-8">
+                                        <div className="flex items-center px-8">
                                             <button
                                                 onClick={() => setStep(1)}
                                                 className="px-6 py-3 border-2 border-gray-100 rounded-2xl font-bold text-gray-400 hover:bg-gray-50 transition"
                                             >
                                                 ← Previous: Address
-                                            </button>
-                                            <button
-                                                onClick={handleContinueToReview}
-                                                className="px-8 py-4 bg-[#1a1a1a] text-white rounded-2xl font-black uppercase tracking-widest hover:bg-black transition"
-                                            >
-                                                Next: Review →
                                             </button>
                                         </div>
                                     )}
@@ -351,25 +352,31 @@ export default function Checkout() {
                             )}
                         </div>
 
-                        {/* 3. Review Order */}
-                        <div ref={reviewRef} className={`transition-all duration-500 ${step < 3 ? 'opacity-30 pointer-events-none' : ''}`}>
+                        {/* 3. Payment Method */}
+                        <div ref={paymentRef} className={`transition-all duration-500 ${step < 3 ? 'opacity-30 pointer-events-none' : ''}`}>
                             {step >= 3 && (
                                 <div className="space-y-6">
-                                    <ReviewOrder
-                                        items={items}
-                                        address={selectedAddr}
-                                        paymentMethod={paymentMethod}
-                                        total={total}
-                                        onPlaceOrder={handlePlaceOrder}
+                                    <PaymentSection
+                                        selectedMethod={paymentMethod}
+                                        onSelect={setPaymentMethod}
+                                        onContinue={paymentMethod === "RAZORPAY" ? handleRazorpayPayment : () => handleFinalOrderPlacement("COD")}
                                         loading={loading}
                                     />
                                     {step === 3 && (
-                                        <div className="flex items-center px-8">
+                                        <div className="flex justify-between items-center px-8">
                                             <button
                                                 onClick={() => setStep(2)}
-                                                className="px-6 py-3 border-2 border-gray-100 rounded-2xl font-bold text-gray-400 hover:bg-gray-50 transition"
+                                                disabled={loading}
+                                                className="px-6 py-3 border-2 border-gray-100 rounded-2xl font-bold text-gray-400 hover:bg-gray-50 transition disabled:opacity-50"
                                             >
-                                                ← Previous: Payment
+                                                ← Previous: Review
+                                            </button>
+                                            <button
+                                                onClick={paymentMethod === "RAZORPAY" ? handleRazorpayPayment : () => handleFinalOrderPlacement("COD")}
+                                                disabled={loading}
+                                                className="px-8 py-4 bg-[#1a1a1a] text-white rounded-2xl font-black uppercase tracking-widest hover:bg-black transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {loading ? "Processing..." : (paymentMethod === "RAZORPAY" ? "Proceed to Pay →" : "Place Order")}
                                             </button>
                                         </div>
                                     )}
